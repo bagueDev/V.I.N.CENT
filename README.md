@@ -1,6 +1,6 @@
 # bagueDev AI Toolkit
 
-**bagueDev AI Toolkit** · **V.I.N.C.E.N.T. MCP Server**
+**Vega56 Launcher** · **V.I.N.C.E.N.T. MCP Server**
 
 > Virtual Information Network · Centralized Executive Neural Terminal
 
@@ -12,8 +12,8 @@
 
 ---
 
-![bagueDev AI Toolkit](screenshots/launcher.png?raw=true)
-![bagueDev Chat](screenshots/chat.png?raw=true)
+![Vega56 Launcher](screenshots/launcher.png?raw=true)
+![Vega56 Chat](screenshots/chat.png?raw=true)
 
 ---
 
@@ -34,7 +34,7 @@ python3 llama-launcher.py
 
 ---
 
-## Launcher
+## Vega56 Launcher
 
 **EN** — A web UI that takes the pain out of `llama.cpp`. Pick a model from your folders, set parameters with your mouse (ctx, layers, threads, flash-attn, MTP, MCP proxy), and hit start. During inference you get live hardware telemetry: GPU temperature, junction temp, fan speed, PPT power draw, CPU temp, and token throughput.
 
@@ -42,7 +42,7 @@ Three ways to interact with your model:
 
 | Interface | Purpose |
 |---|---|
-| **bagueDev Chat** | Quick tests, clean chat UI with live metrics |
+| **Vega56 Chat** | Quick tests, clean chat UI with live metrics |
 | **Native llama.cpp WebUI** | Agentic tasks via MCP proxy, chat history |
 | **Continue.dev (VS Code)** | Same local model inside your editor |
 
