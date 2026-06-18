@@ -1,6 +1,6 @@
 # bagueDev AI Toolkit
 
-**Vega56 Launcher** · **V.I.N.C.E.N.T. MCP Server**
+**bagueDev AI Toolkit** · **V.I.N.C.E.N.T. MCP Server**
 
 > Virtual Information Network · Centralized Executive Neural Terminal
 
@@ -12,8 +12,8 @@
 
 ---
 
-![Vega56 Launcher](screenshots/launcher.png?raw=true)
-![Vega56 Chat](screenshots/chat.png?raw=true)
+![bagueDev AI Toolkit](screenshots/launcher.png?raw=true)
+![bagueDev Chat](screenshots/chat.png?raw=true)
 
 ---
 
@@ -34,7 +34,7 @@ python3 llama-launcher.py
 
 ---
 
-## Vega56 Launcher
+## Launcher
 
 **EN** — A web UI that takes the pain out of `llama.cpp`. Pick a model from your folders, set parameters with your mouse (ctx, layers, threads, flash-attn, MTP, MCP proxy), and hit start. During inference you get live hardware telemetry: GPU temperature, junction temp, fan speed, PPT power draw, CPU temp, and token throughput.
 
@@ -42,7 +42,7 @@ Three ways to interact with your model:
 
 | Interface | Purpose |
 |---|---|
-| **Vega56 Chat** | Quick tests, clean chat UI with live metrics |
+| **bagueDev Chat** | Quick tests, clean chat UI with live metrics |
 | **Native llama.cpp WebUI** | Agentic tasks via MCP proxy, chat history |
 | **Continue.dev (VS Code)** | Same local model inside your editor |
 
@@ -87,6 +87,18 @@ Vollständige Liste → [jarvis_tools.html](jarvis_tools.html)
 | **Graceful Fallbacks** | ChromaDB optional, DDGS auto-fallback for Reddit/News |
 | **Session Persistence** | Chrome keeps logins across restarts |
 | **Jinja Templates** | `--jinja` only, no chat-template file juggling |
+
+---
+
+## Privacy & Data Protection
+
+**EN** — Everything runs **100% locally** on your machine. No data ever leaves your computer. No API calls to OpenAI, Anthropic, or any cloud service. No telemetry, no tracking, no user accounts. The only optional external call is Tavily search (if you configure an API key) — everything else works fully offline.
+
+You own your models, your data, and your privacy. **Zero API costs. Zero subscriptions.**
+
+**DE** — Alles läuft **zu 100% lokal** auf deinem Rechner. Keine Daten verlassen jemals deinen Computer. Keine API-Calls an OpenAI, Anthropic oder andere Cloud-Dienste. Kein Telemetrie, kein Tracking, keine Benutzerkonten. Der einzige optionale externe Aufruf ist die Tavily-Suche (wenn du einen API-Key konfigurierst) — alles andere funktioniert komplett offline.
+
+Du behältst die Kontrolle über deine Modelle, deine Daten und deine Privatsphäre. **Keine API-Kosten. Keine Abos.**
 
 ---
 
