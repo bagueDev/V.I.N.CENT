@@ -26,9 +26,10 @@
 
 ```bash
 git clone https://github.com/bagueDev/bagueDev-ai-toolkit
-cd bagueDev-ai-toolkit
+cd /deinProjekt
 pip install -r requirements.txt
-playwright install chromium
+playwright install chromium    # Browser-Automation
+crawl4ai-setup                  # Deep-Web-Scraping (optional, ~500MB)
 
 # MCP Server (standalone, port 8000)
 python3 mcp_server.py
