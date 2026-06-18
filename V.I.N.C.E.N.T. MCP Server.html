@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V.I.N.C.E.N.T. Tool-Suite</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; margin: 20px; background-color: #eef1f5; color: #333; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; border-bottom: 3px solid #0056b3; padding-bottom: 10px; text-align: center; }
+        h2 { color: #333; margin-top: 25px; border-left: 5px solid #ffc107; padding-left: 10px; }
+        .tool-category { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #fafafa; }
+        .tool-category h3 { color: #007bff; margin-top: 0; }
+        ul { list-style-type: none; padding-left: 0; }
+        li { background: #fff; margin-bottom: 8px; padding: 10px; border-radius: 5px; border-left: 4px solid #28a745; transition: transform 0.2s; }
+        li:hover { transform: translateX(5px); background-color: #e9ecef; }
+        .tool-name { font-weight: bold; color: #0056b3; display: block; margin-bottom: 3px; }
+        .tool-description { font-size: 0.9em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 V.I.N.C.E.N.T. Tool Suite</h1>
+        <p style="text-align: center; font-style: italic;">Dies ist eine vollständige Dokumentation aller derzeit verfügbaren Tools in V.I.N.C.E.N.T.</p>
+
+        <!-- Browser & Web-Interaktion -->
+        <div class="tool-category">
+            <h3>🌐 Browser & Web-Interaktion</h3>
+            <ul>
+                <li><span class="tool-name">browser_open</span> <span class="tool-description">Öffnet eine URL im Browser.</span></li>
+                <li><span class="tool-name">structured_snapshot</span> <span class="tool-description">Holt eine strukturierte Liste aller interaktiven Elemente auf einer Seite.</span></li>
+                <li><span class="tool-name">browser_click</span> <span class="tool-description">Klickt auf ein Element mittels CSS-Selektor.</span></li>
+                <li><span class="tool-name">browser_type</span> <span class="tool-description">Gibt Text in ein Eingabefeld ein.</span></li>
+                <li><span class="tool-name">browser_screenshot</span> <span class="tool-description">Macht einen Screenshot der aktuellen Ansicht.</span></li>
+                <li><span class="tool-name">browser_navigate</span> <span class="tool-description">Navigiert zwischen Seiten (vor/zurück/URL).</span></li>
+                <li><span class="tool-name">browser_new_tab</span> <span class="tool-description">Öffnet einen neuen Tab (optional mit URL).</span></li>
+                <li><span class="tool-name">browser_switch_tab</span> <span class="tool-description">Wechselt zu einem Tab anhand seines Index.</span></li>
+                <li><span class="tool-name">browser_close_tab</span> <span class="tool-description">Schließt einen Tab.</span></li>
+                <li><span class="tool-name">browser_list_tabs</span> <span class="tool-description">Listet alle offenen Tabs auf.</span></li>
+                <li><span class="tool-name">browser_wait_for</span> <span class="tool-description">Wartet auf das Erscheinen eines Elements (CSS-Selektor).</span></li>
+                <li><span class="tool-name">browser_wait_for_load</span> <span class="tool-description">Wartet, bis eine Seite vollständig geladen ist.</span></li>
+                <li><span class="tool-name">auto_click</span> <span class="tool-description">Klickt auf Text mit Selbstheilungs-Fallback.</span></li>
+                <li><span class="tool-name">web_scrape</span> <span class="tool-description">Scrapt eine Seite und gibt sauberes Markdown zurück.</span></li>
+                <li><span class="tool-name">deep_scrape</span> <span class="tool-description">Crawlt rekursiv, um alle Seiten einer Website zu durchsuchen.</span></li>
+                <li><span class="tool-name">tavily_search</span> <span class="tool-description">Websuche mit Tavily AI (bessere Ergebnisse).</span></li>
+                <li><span class="tool-name">tavily_extract</span> <span class="tool-description">Extrahiert Inhalte aus URLs (Markdown oder Text).</span></li>
+                <li><span class="tool-name">tavily_map</span> <span class="tool-description">Kartiert die Struktur einer Website.</span></li>
+            </ul>
+        </div>
+
+        <!-- Suche & Trends -->
+        <div class="tool-category">
+            <h3>🔍 Suche & Trends</h3>
+            <ul>
+                <li><span class="tool-name">duckduckgo_search</span> <span class="tool-description">Allgemeine Websuche mit DuckDuckGo.</span></li>
+                <li><span class="tool-name">duckduckgo_images</span> <span class="tool-description">Bildsuche mit DuckDuckGo.</span></li>
+                <li><span class="tool-name">tavily_research</span> <span class="tool-description">Führt umfassende, mehrquellenbasierte Recherchen durch.</span></li>
+                <li><span class="tool-name">google_trends</span> <span class="tool-description">Holt Google Trends für spezifische Keywords.</span></li>
+                <li><span class="tool-name">reddit_trending</span> <span class="tool-description">Holt Trending-Posts von Reddit.</span></li>
+                <li><span class="tool-name">hackernews_trending</span> <span class="tool-description">Holt Trending-Artikel von Hacker News.</span></li>
+                <li><span class="tool-name">youtube_trending</span> <span class="tool-description">Sucht nach aktuellen Trending YouTube-Videos.</span></li>
+                <li><span class="tool-name">news_headlines</span> <span class="tool-description">Holt aktuelle Nachrichten zu einem Topic.</span></li>
+                <li><span class="tool-name">imdb_search</span> <span class="tool-description">Sucht Filme auf IMDB.</span></li>
+                <li><span class="tool-name">weather</span> <span class="tool-description">Holt Wetterdaten für einen bestimmten Ort.</span></li>
+                <li><span class="tool-name">browser_search_products</span> <span class="tool-description">Sucht Produkte auf Amazon.</span></li>
+            </ul>
+        </div>
+
+        <!-- Datei & Projektmanagement -->
+        <div class="tool-category">
+            <h3>📁 Datei & Projektverwaltung</h3>
+            <ul>
+                <li><span class="tool-name">read_file</span> <span class="tool-description">Liest den Inhalt einer lokalen Datei.</span></li>
+                <li><span class="tool-name">write_file</span> <span class="tool-description">Schreibt Inhalt in eine Datei oder erstellt eine neue.</span></li>
+                <li><span class="tool-name">append_to_file</span> <span class="tool-description">Fügt Inhalt am Ende einer Datei an.</span></li>
+                <li><span class="tool-name">list_directory</span> <span class="tool-description">Listet den Inhalt eines Verzeichnisses auf.</span></li>
+                <li><span class="tool-name">scan_folder</span> <span class="tool-description">Scannt einen Ordner rekursiv nach Dateien mit bestimmten Erweiterungen.</span></li>
+                <li><span class="tool-name">get_file_info</span> <span class="tool-description">Gibt Informationen über eine Datei zurück (Größe, Datum etc.).</span></li>
+                <li><span class="tool-name">create_directory</span> <span class="tool-description">Erstellt ein neues Verzeichnis.</span></li>
+                <li><span class="tool-name">delete_file</span> <span class="tool-description">Löscht eine Datei oder ein leeres Verzeichnis.</span></li>
+                <li><span class="tool-name">search_files</span> <span class="tool-description">Durchsucht Dateien nach einem generischen Pattern (grep-like).</span></li>
+                <li><span class="tool-name">grep</span> <span class="tool-description">Durchsucht Dateien nach einem Pattern mit Regex-Unterstützung.</span></li>
+                <li><span class="tool-name">patch_file</span> <span class="tool-description">Ersetzt Zeilen in einer Datei (Zeilenbereich).</span></li>
+                <li><span class="tool-name">analyze_project</span> <span class="tool-description">Analysiert die Struktur und Abhängigkeiten eines Projekts.</span></li>
+                <li><span class="tool-name">add_project_to_rag</span> <span class="tool-description">Lädt ein Projekt in den RAG-Index für semantische Suche.</span></li>
+                <li><span class="tool-name">clear_project_rag</span> <span class="tool-description">Löscht den Projekt-RAG-Index.</span></li>
+            </ul>
+        </div>
+
+        <!-- KI & System -->
+        <div class="tool-category">
+            <h3>🧠 KI, System & Lernen</h3>
+            <ul>
+                <li><span class="tool-name">save_memory</span> <span class="tool-description">Speichert eine Information dauerhaft im Langzeitgedächtnis.</span></li>
+                <li><span class="tool-name">search_memory</span> <span class="tool-description">Suche in gespeicherten Erinnerungen.</span></li>
+                <li><span class="tool-name">list_memory</span> <span class="tool-description">Listet alle gespeicherten Erinnerungen.</span></li>
+                <li><span class="tool-name">delete_memory</span> <span class="tool-description">Löscht einen spezifischen Erinnerungseintrag.</span></li>
+                <li><span class="tool-name">list_skills</span> <span class="tool-description">Listet alle selbstgelernten Skills auf.</span></li>
+                <li><span class="tool-name">learn_skill</span> <span class="tool-description">Trainiert V.I.N.C.E.N.T. manuell auf einen Tool-Aufruf.</span></li>
+                <li><span class="tool-name">use_skill</span> <span class="tool-description">Führt einen gelernten Skill anhand seines Keywords aus.</span></li>
+                <li><span class="tool-name">show_tool_usage</span> <span class="tool-description">Zeigt Statistiken zur Tool-Nutzung.</span></li>
+                <li><span class="tool-name">vincent_status</span> <span class="tool-description">Gibt den aktuellen Betriebszustand von V.I.N.C.E.N.T. zurück.</span></li>
+                <li><span class="tool-name">create_diagram</span> <span class="tool-description">Generiert Mermaid-Diagramme (Architecture, Flowchart, etc.).</span></li>
+                <li><span class="tool-name">run_python</span> <span class="tool-description">Führt Python-Code aus (mit Sicherheitsbeschränkungen).</span></li>
+                <li><span class="tool-name">run_command</span> <span class="tool-description">Führt erlaubte Kommandozeilen-Befehle aus.</span></li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
