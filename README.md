@@ -2,7 +2,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![llama.cpp](https://img.shields.io/badge/llama.cpp-b9664-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
-# bagueDev AI Toolkit
+# bagueDev LLAMA.CPP WEB UI LAUNCHER
 
 **bagueDev AI Toolkit** · **V.I.N.C.E.N.T. MCP Server**
 
