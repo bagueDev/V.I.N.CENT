@@ -31,6 +31,9 @@ pip install -r requirements.txt
 playwright install chromium    # Browser-Automation
 crawl4ai-setup                  # Deep-Web-Scraping (optional, ~500MB)
 
+# venv aktivieren
+source venv/bin/activate
+
 # MCP Server (standalone, port 8000)
 python3 mcp_server.py
 
