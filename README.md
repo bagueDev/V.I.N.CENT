@@ -17,6 +17,7 @@
 ---
 <img width="1280" height="720" alt="Bildschirmfoto vom 2026-06-18 17-38-20" src="https://github.com/user-attachments/assets/acd892bf-0f38-430e-a117-a8792e74dd92" />
 
+<img width="1280" height="720" alt="Bildschirmfoto vom 2026-06-18 17-36-34" src="https://github.com/user-attachments/assets/14e23b98-d155-4d66-a648-b1185bcb0224" />
 
 ![bagueDev Chat](screenshots/chat.png?raw=true)
 
