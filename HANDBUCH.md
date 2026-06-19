@@ -321,31 +321,6 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 └──────────────────────┘   └──────────────────────────┘
 ```
 
-### File Writing Strategy
-
-Dateien > 5000 Zeichen werden in zwei Schritten geschrieben:
-1. Platzhalter setzen (`def func1(): pass` / `<!-- section1 -->`)
-2. Abschnitt für Abschnitt mit echtem Inhalt befüllen
-
-Limit pro `write_file` / `append_to_file`: 16.000 Zeichen.
-
-### Wichtige Flags (llama-server)
-
-| Flag | Wirkung |
-|---|---|
-| `--jinja` | Chat-Template direkt aus Modell (kein manuelles Template) |
-| `--no-cont-batching` | Kein Continuous Batching – GPU wird nach Antwort sofort frei |
-| `--slot-keepalive 0` | Slot wird nicht warmgehalten |
-| `--flash-attn 1` | Flash Attention für längeren Kontext |
-| `--cache-type-k q8_0` | KV-Cache-Kompression spart VRAM |
-| `--cache-type-v q8_0` | KV-Cache-Kompression spart VRAM |
-
-### Bekannte Issues
-
-- **llama.cpp PEG Parser**: Kann keine mehreren `<tool_call>`-Blöcke in einer Antwort verarbeiten (Issue #20260).
-- **llama.cpp JSON Parser**: Limit bei ~8 KB/13 KB Tool-Call-Argumenten (Issue #20359). Workaround: `--n-predict 16768`.
-- **GPU Dauernutzung**: Nach Chat-Antwort hält `--cont-batching` den KV-Cache warm. Workaround: `--no-cont-batching` + `--slot-keepalive 0` (seit v1 Standard).
-
 ### Version History
 
 | Version | Datum | Änderungen |
