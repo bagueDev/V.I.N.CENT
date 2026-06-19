@@ -9,12 +9,15 @@
 1. [Warum dieses Toolkit?](#1-warum-dieses-toolkit)
 2. [Low‑Budget Philosophie](#2-low-budget-philosophie)
 3. [Die Hardware‑Realität 2024–2026: Die RAM‑Krise](#3-die-hardware-realitat-20242026-die-ramkrise)
-4. [Die KI‑Hardware‑Blase & der Wertverlust](#4-die-kihardwareblase--der-wertverlust)
+4. [Die Hardware, die wirklich zählt](#4-die-hardware-die-wirklich-zahlt)
 5. [Was dieses Toolkit IST (und was nicht)](#5-was-dieses-toolkit-ist-und-was-nicht)
-6. [Die Bausteine](#6-die-bausteine)
-7. [Datenschutz & Kontrolle](#7-datenschutz--kontrolle)
-8. [Loslegen](#8-loslegen)
-9. [Developer Notes](#9-developer-notes)
+6. [Abgrenzung zu anderen Tools](#6-abgrenzung-zu-anderen-tools)
+7. [Die Bausteine](#7-die-bausteine)
+8. [Datenschutz & Kontrolle](#8-datenschutz--kontrolle)
+9. [Loslegen](#9-loslegen)
+10. [Developer Notes](#10-developer-notes)
+
+> **Springe direkt zu:** [Developer Notes](#10-developer-notes)
 
 ---
 
@@ -162,7 +165,40 @@ Die beste Hardware ist die, die du schon hast. Mit der richtigen Software.
 
 ---
 
-## 6. Die Bausteine
+## 6. Abgrenzung zu anderen Tools
+
+Ja, es gibt bereits Tools wie **Ollama**, **LM Studio** oder **GPT4All**.
+Und ja, viele davon haben mehr Features – aber der Weg dorthin ist steinig.
+
+### Der Haken an den anderen
+
+- **Ressourcen**: Eine Electron-App die 500 MB RAM zieht, nur um ein Modell zu starten? Das ist nicht leicht, das ist aufgebläht.
+- **Konten & Cloud**: Immer mehr Tools drängen dich in Accounts, Telemetrie oder irgendeine Cloud-Anbindung. Du willst lokal bleiben? Viel Glück.
+- **Automatische Downloads**: Ein Klick und schon zieht sich das Tool 10 GB Modell aus dem Internet – ohne zu fragen, ohne Kontrolle.
+- **Feature-Wahn**: Jedes Tool will alles können. Am Ende kann keins richtig.
+- **Versteckte Verbindungen**: Man weiss nie genau, wer noch mithört.
+
+### Warum wir anders sind
+
+Wir haben uns bewusst entschieden:
+
+- **Kein Electron** – nur HTML + JS im Browser, der eh da ist
+- **Kein Account** – du musst dich nirgends anmelden
+- **Keine Cloud** – kein Server ausser deinem eigenen
+- **Keine Telemetrie** – keine pingt nach Hause
+- **Keine Config-Orgie** – starten und loslegen
+
+Unser ganzer Fokus liegt darauf, dass du dein Modell startest – und nicht 3 Stunden googeln musst, warum was nicht funktioniert.
+
+Ollama ist gut, wenn du 20 Modelle automatisch verwalten willst.
+Wir sind gut, wenn du **ein Modell** starten willst und es soll **einfach funktionieren**.
+
+Beide Ansätze sind legitim.
+Wir haben uns für den einfachen entschieden.
+
+---
+
+## 7. Die Bausteine
 
 ### Launcher (Port 9999)
 
@@ -191,11 +227,11 @@ Einfach Modell auswählen → starten → fertig.
 ### Continue.dev / VS Code Integration
 
 Gleiches Modell im Editor.
-Keine Cloud, keine API‑Kosten.Erstaunlich gut. 
+Keine Cloud, keine API‑Kosten.
 
 ---
 
-## 7. Datenschutz & Kontrolle
+## 8. Datenschutz & Kontrolle
 
 - 100% lokal
 - Keine Cloud
@@ -208,7 +244,7 @@ Nicht Big Tech.
 
 ---
 
-## 8. Loslegen
+## 9. Loslegen
 
 ### Kurzanleitung:
 
@@ -239,7 +275,7 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 
 ---
 
-## 9. Developer Notes
+## 10. Developer Notes
 
 ### Projektstruktur
 
