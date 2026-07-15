@@ -196,13 +196,21 @@ Wir haben uns bewusst entschieden:
 - **Keine Telemetrie** – keine pingt nach Hause
 - **Keine Config-Orgie** – starten und loslegen
 
-Unser ganzer Fokus liegt darauf, dass du dein Modell startest – und nicht 3 Stunden googeln musst, warum was nicht funktioniert.
 
-Ollama ist gut, wenn du 20 Modelle automatisch verwalten willst.
-Wir sind gut, wenn du **ein Modell** starten willst und es soll **einfach funktionieren**.
+### Philosophie
+
+Ollama ist gut, wenn du **20 Modelle automatisch verwalten** willst.
+LM Studio ist gut, wenn du eine **policerte Desktop-Oberfläche** willst.
+
+Wir sind gut, wenn du:
+- Einen **MCP-Server mit 50+ Tools** brauchst (Browser, Memory, Dateien, Web-Scraping, Trends)
+- **Hardware überwachen** willst (GPU-Temperatur, Lüfter, Stromverbrauch)
+- **Claude Code CLI** mit lokalen Modellen nutzen willst (Qwen & Gemma funktionieren out-of-the-box)
+- **100% offline** arbeiten willst – kein Telemetrie, kein Account, keine Cloud
+- Ein **einzelnes Modell** starten willst und es soll **einfach funktionieren**
 
 Beide Ansätze sind legitim.
-Wir haben uns für den einfachen entschieden.
+Wir haben uns für den einfachen, local-first Weg entschieden.
 
 ---
 
