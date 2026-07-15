@@ -170,6 +170,8 @@ playwright install chromium
 crawl4ai-setup   # optional, for deep web scraping
 ```
 
+> `sentence-transformers` (~400 MB) wird automatisch installiert und lädt beim ersten Skill-Aufruf ein Embedding-Modell herunter.
+
 ---
 
 ## License
