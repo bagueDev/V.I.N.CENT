@@ -340,6 +340,37 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 │  Port 8080           │   │                          │
 └──────────────────────┘   └──────────────────────────┘
 ```
+### Qwen Jinja-Template Fix
+
+**Problem:** Claude Code CLI sendet System-Messages nicht ausschliesslich an Position 0, sondern auch später im Kontext. Das originale Qwen-Template in llama.cpp (`--jinja`) wirft dann `System message must be at the beginning of the message list.` und bricht ab.
+
+**Lösung:** `qwen_fixed.jinja` ist ein leicht modifiziertes Qwen-Chat-Template, das die system-first-Prüfung entfernt hat. Aktivierung im Launcher über die Checkbox «Qwen Chat-Template» (setzt `--chat-template-file qwen_fixed.jinja`). Ohne Checkbox wird das normale llama.cpp-`--jinja`-Template verwendet (Default).
+
+**Hintergrund:** Qwen-Modelle verwenden das ChatML-Format (`<|im_start|>system/...`), das prinzipiell System-Messages an jeder Position erlaubt. Die Prüfung im originalen Template war eine unnötige Restriktion. `--chat-template chatml` funktioniert als Workaround, produziert aber nicht das volle Qwen-Template mit Tools- und Reasoning-Unterstützung.
+
+### Gemma Jinja-Template Fix
+
+**Problem:** Das originale Gemma-4-Template in llama.cpp (`--jinja`) verarbeitet System-Messages **nur an Position 0**. Claude Code CLI sendet System-Messages auch später im Kontext → das Template rendert sie als isolierten `<|turn>system...<turn|>`-Block, den Gemma nicht interpretieren kann. Folge: fehlerhafte Tool-Calls, `write_file`-Fallback.
+
+**Lösung:** `gemma_fixed.jinja` scannt vor dem Rendern **alle** Messages nach `system`/`developer`-Rollen, sammelt deren Content und fügt ihn in den initialen System-Block ein. Alle System-Messages werden aus der Message-Schleife entfernt.
+
+**Launcher:** Radio-Buttons «Default» / «Qwen CLI FIX» / «Gemma CLI FIX» im Optionsbereich (ersetzen die alte Qwen-Checkbox). Nur eine Auswahl gleichzeitig aktiv.
+
+### Sampling-Presets
+
+Der Launcher bietet vier Presets plus einen Custom-Modus für Sampling-Parameter:
+
+| Preset | `--temp` | `--repeat-penalty` | `--top-k` | `--top-p` |
+|--------|----------|-------------------|-----------|-----------|
+| **Default** | llama.cpp-Standard (0.80) | – | – | – |
+| **Chat/Agent** | 0.70 | 1.10 | 40 | 0.90 |
+| **Creative** | 0.90 | 1.15 | 60 | 0.95 |
+| **Code/Precise** | 0.50 | 1.15 | 30 | 0.85 |
+| **Custom** | frei wählbar | frei wählbar | frei wählbar | frei wählbar |
+
+Bei «Custom» erscheinen vier Eingabefelder (Temp, Repeat, Top-K, Top-P) plus ein Textfeld **Extra Flags** für beliebige weitere llama.cpp-Parameter (`--mirostat`, `--seed`, `--presence-penalty`, …). Die Extra Flags werden via `shlex.split()` geparst.
+
+Die Einstellungen haben keine Auswirkung auf die Chat-UI – dort gelten die Defaults des Servers.
 
 ### Version History
 
