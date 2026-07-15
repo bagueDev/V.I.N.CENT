@@ -376,7 +376,8 @@ Die Einstellungen haben keine Auswirkung auf die Chat-UI – dort gelten die Def
 
 | Version | Datum | Änderungen |
 |---|---|---|
-| v1.0 | Juni 2026 | Erstveröffentlichung. Launcher, Chat, V.I.N.C.E.N.T. MCP Server, ChromaDB, Handbuch. |
+| v1.0 | Juni 2026 | Ankündigung. Launcher, Chat, V.I.N.C.E.N.T. MCP Server, ChromaDB, Handbuch. |
+| v1.1 | Juli 2026 | Vorbereitung Erstveröffentlichung. Launcher, Chat, V.I.N.C.E.N.T. MCP Server, ChromaDB, Handbuch. |
 
 ---
 
