@@ -83,6 +83,7 @@ LM Studio ist gut, wenn du eine **policerte Desktop-Oberfläche** willst.
 Dieses Toolkit ist für dich, wenn du **MCP-Tools, Browser-Automation, Memory und Hardware-Telemetrie** brauchst — alles lokal, alles kostenlos, ohne Accounts.
 
 ---
+## Launcher
 
 **EN** — A web UI that takes the pain out of `llama.cpp`. Pick a model from your folders, set parameters with your mouse (ctx, layers, threads, flash-attn, MTP, MCP proxy, sampling presets), and hit start. During inference you get live hardware telemetry: GPU temperature, junction temp, fan speed, PPT power draw, CPU temp, and token throughput.
 
@@ -95,23 +96,6 @@ Three ways to interact with your model:
 | **Continue.dev (VS Code)** | Same local model inside your editor |
 
 **DE** — Eine WebUI, die `llama.cpp` endlich bedienbar macht. Wähle ein Modell aus deinen Ordnern, setze Parameter mit der Maus (ctx, layers, threads, flash-attn, MTP, MCP proxy, Sampling-Presets), und starte. Während der Inference siehst du Live-Hardware-Daten: GPU-Temperatur, Junction-Temp, Lüfterdrehzahl, PPT-Leistung, CPU-Temp und Token-Durchsatz.
-
----
-
-
-## Launcher
-
-**EN** — A web UI that takes the pain out of `llama.cpp`. Pick a model from your folders, set parameters with your mouse (ctx, layers, threads, flash-attn, MTP, MCP proxy), and hit start. During inference you get live hardware telemetry: GPU temperature, junction temp, fan speed, PPT power draw, CPU temp, and token throughput.
-
-Three ways to interact with your model:
-
-| Interface | Purpose |
-|---|---|
-| **bagueDev Chat** | Quick tests, clean chat UI with live metrics |
-| **Native llama.cpp WebUI** | Agentic tasks via MCP proxy, chat history |
-| **Continue.dev (VS Code)** | Same local model inside your editor |
-
-**DE** — Eine WebUI, die llama.cpp visuell kontrollierbar macht. Wähle ein Modell aus deinen Ordnern, setze Parameter mit der Maus (ctx, layers, threads, flash-attn, MTP, MCP proxy), und starte. Während der Inference siehst du Live-Hardware-Daten: GPU-Temperatur, Junction-Temp, Lüfterdrehzahl, PPT-Leistung, CPU-Temp und Token-Durchsatz.
 
 ---
 
