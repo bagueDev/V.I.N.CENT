@@ -300,9 +300,13 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 | `llama-launcher.py` | WebUI Launcher (Port 9999) + Chat. Single-File, stdlib only. |
 | `mcp_server.py` | V.I.N.C.E.N.T. MCP Server (Port 8000). 50+ Tools, ChromaDB, h11. |
 | `start.sh` | Startet Launcher + MCP in zwei Terminal-Tabs. |
-| `requirements.txt` | Python-Dependencies für den MCP Server. |
+| `requirements.txt` | Python-Dependencies (u.a. `sentence-transformers` für Skills). |
+| `browser_subprocess.py` | Playwright-Browser-Prozess (stdin/stdout). Wird vom MCP Server automatisch gestartet. |
 | `AGENTS.md` | KI-Assistenten-Konfiguration (File Writing Strategy, Regeln). |
+| `qwen_fixed.jinja` | Qwen Chat-Template ohne system-first-Prüfung (Fix für Claude Code CLI). |
+| `gemma_fixed.jinja` | Gemma Chat-Template mit Pre-Scan für spätere System-Messages (Fix für Claude Code CLI). |
 | `HANDBUCH.md` | Dieses Handbuch. |
+
 
 ### Coding Conventions
 
