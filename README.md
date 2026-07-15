@@ -135,8 +135,12 @@ Vollständige Liste → [jarvis_tools.html](jarvis_tools.html)
 | **Streamable HTTP** | h11 instead of httptools, no payload limits |
 | **Self-Chunking** | Files >16KB are transparently split for writing |
 | **Graceful Fallbacks** | ChromaDB optional, DDGS auto-fallback for Reddit/News |
+| **Browser Subprocess** | `browser_subprocess.py` – dedicated Playwright process, crash-safe via stdin/stdout |
 | **Session Persistence** | Chrome keeps logins across restarts |
 | **Jinja Templates** | `--jinja` only, no chat-template file juggling |
+| **Qwen/Gemma CLI Fix** | `qwen_fixed.jinja` + `gemma_fixed.jinja` für Claude Code CLI-Kompatibilität |
+| **Sampling-Presets** | Chat/Creative/Code-Presets + Custom-Modus mit Extra Flags |
+| **Execute-Whitelist** | `npx`/`ffmpeg`/`node`/`npm`/`pip`/`python3` für kontrollierte Command-Ausführung |
 
 ---
 
