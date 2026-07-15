@@ -170,13 +170,21 @@ Die beste Hardware ist die, die du schon hast. Mit der richtigen Software.
 Ja, es gibt bereits Tools wie **Ollama**, **LM Studio** oder **GPT4All**.
 Und ja, viele davon haben mehr Features – aber der Weg dorthin ist steinig.
 
-### Der Haken an den anderen
+### Feature-Vergleich
 
-- **Ressourcen**: Eine Electron-App die 500 MB RAM zieht, nur um ein Modell zu starten? Das ist nicht leicht, das ist aufgebläht.
-- **Konten & Cloud**: Immer mehr Tools drängen dich in Accounts, Telemetrie oder irgendeine Cloud-Anbindung. Du willst lokal bleiben? Viel Glück.
-- **Automatische Downloads**: Ein Klick und schon zieht sich das Tool 10 GB Modell aus dem Internet – ohne zu fragen, ohne Kontrolle.
-- **Feature-Wahn**: Jedes Tool will alles können. Am Ende kann keins richtig.
-- **Versteckte Verbindungen**: Man weiss nie genau, wer noch mithört.
+| Funktion | bagueDev Toolkit | Ollama | LM Studio |
+|---|---|---|---|
+| **MCP Server (50+ Tools)** | ✅ integriert | ❌ | ❌ |
+| **Browser-Automation** | ✅ Playwright (klicken, tippen, Tabs, Screenshots) | ❌ | ❌ |
+| **ChromaDB Memory** | ✅ semantisches Langzeitgedächtnis | ❌ | ❌ |
+| **Live-Hardware-Telemetrie** | ✅ GPU-Temp, Junction, Lüfter, PPT | ❌ | ❌ |
+| **Claude Code CLI Support** | ✅ Qwen+Gemma Template-Fixes | ❌ | ❌ |
+| **MCP Proxy** | ✅ Tool-Calls an andere MCP-Server | ❌ | ❌ |
+| **WebUI von jedem Gerät** | ✅ browserbasiert, LAN | ❌ (CLI) | ✅ (Desktop) |
+| **Telemetrie** | **keine** | ⚠️ standardmässig an | ⚠️ eingeschränkt |
+| **Modell-Download** | ❌ manuell | ✅ `ollama pull` | ✅ integriert |
+| **Modell-Bibliothek** | ❌ keine Galerie | ✅ gross | ✅ gross |
+
 
 ### Warum wir anders sind
 
