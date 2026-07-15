@@ -40,6 +40,64 @@ python3 llama-launcher.py
 ```
 
 ---
+---
+
+## Why not just Ollama / LM Studio?
+
+**EN** — Fair question. Here is what you get here that you **cannot** get from Ollama or LM Studio:
+
+| Capability | bagueDev Toolkit | Ollama | LM Studio |
+|---|---|---|---|
+| **MCP Server (50+ tools)** | ✅ built-in — file ops, browser, search, memory, diagram, sandbox | ❌ | ❌ |
+| **Browser automation** | ✅ dedicated Playwright subprocess (click, type, tabs, screenshots) | ❌ | ❌ |
+| **ChromaDB memory** | ✅ semantic long-term memory + skill learning | ❌ | ❌ |
+| **Live hardware telemetry** | ✅ GPU temp, junction, fan, PPT power draw during inference | ❌ | ❌ |
+| **Claude Code CLI** | ✅ works with local models (Qwen, Gemma via template fixes) | ❌ | ❌ |
+| **MCP Proxy** | ✅ proxy tool calls to other MCP servers | ❌ | ❌ |
+| **Web UI from any device** | ✅ browser-based, accessible on your LAN | ❌ (CLI only) | ✅ (desktop only) |
+| **Telemetry** | **none** — zero, not even opt-in | ⚠️ on by default | ⚠️ limited |
+| **Model download** | ❌ manual GGUF placement | ✅ `ollama pull` | ✅ built-in |
+| **Model library** | ❌ no curated gallery | ✅ large | ✅ large |
+
+Ollama is great if you want to **manage 20 models** and pull them from a library.
+LM Studio is great if you want a **polished desktop GUI**.
+This toolkit is for you if you want **MCP tools, browser automation, memory, and hardware telemetry** — all local, all free, no accounts.
+
+**DE** — Gute Frage. Hier siehst du, was du **nur** hier bekommst:
+
+| Funktion | bagueDev Toolkit | Ollama | LM Studio |
+|---|---|---|---|
+| **MCP Server (50+ Tools)** | ✅ integriert — Dateien, Browser, Suche, Memory, Diagramme, Sandbox | ❌ | ❌ |
+| **Browser-Automation** | ✅ eigener Playwright-Prozess (klicken, tippen, Tabs, Screenshots) | ❌ | ❌ |
+| **ChromaDB Memory** | ✅ semantisches Langzeitgedächtnis + Skill-Learning | ❌ | ❌ |
+| **Live-Hardware-Telemetrie** | ✅ GPU-Temp, Junction, Lüfter, PPT während der Inference | ❌ | ❌ |
+| **Claude Code CLI** | ✅ funktioniert mit lokalen Modellen (Qwen, Gemma via Template-Fixes) | ❌ | ❌ |
+| **MCP Proxy** | ✅ Tool-Aufrufe an andere MCP-Server weiterleiten | ❌ | ❌ |
+| **WebUI von jedem Gerät** | ✅ browserbasiert, via LAN erreichbar | ❌ (nur CLI) | ✅ (nur Desktop) |
+| **Telemetrie** | **keine** — null, nicht mal opt-in | ⚠️ standardmässig an | ⚠️ eingeschränkt |
+| **Modell-Download** | ❌ manuelle GGUF-Platzierung | ✅ `ollama pull` | ✅ integriert |
+| **Modell-Bibliothek** | ❌ keine kuratierte Galerie | ✅ gross | ✅ gross |
+
+Ollama ist gut, wenn du **20 Modelle verwalten** und aus einer Bibliothek ziehen willst.
+LM Studio ist gut, wenn du eine **policerte Desktop-Oberfläche** willst.
+Dieses Toolkit ist für dich, wenn du **MCP-Tools, Browser-Automation, Memory und Hardware-Telemetrie** brauchst — alles lokal, alles kostenlos, ohne Accounts.
+
+---
+
+**EN** — A web UI that takes the pain out of `llama.cpp`. Pick a model from your folders, set parameters with your mouse (ctx, layers, threads, flash-attn, MTP, MCP proxy, sampling presets), and hit start. During inference you get live hardware telemetry: GPU temperature, junction temp, fan speed, PPT power draw, CPU temp, and token throughput.
+
+Three ways to interact with your model:
+
+| Interface | Purpose |
+|---|---|
+| **bagueDev Chat** | Quick tests, clean chat UI with live metrics |
+| **Native llama.cpp WebUI** | Agentic tasks via MCP proxy, chat history |
+| **Continue.dev (VS Code)** | Same local model inside your editor |
+
+**DE** — Eine WebUI, die `llama.cpp` endlich bedienbar macht. Wähle ein Modell aus deinen Ordnern, setze Parameter mit der Maus (ctx, layers, threads, flash-attn, MTP, MCP proxy, Sampling-Presets), und starte. Während der Inference siehst du Live-Hardware-Daten: GPU-Temperatur, Junction-Temp, Lüfterdrehzahl, PPT-Leistung, CPU-Temp und Token-Durchsatz.
+
+---
+
 
 ## Launcher
 
