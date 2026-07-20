@@ -25,7 +25,7 @@
 ## Quick Start
 
 ```bash
-git clone https://github.com/bagueDev/bagueDev-ai-toolkit
+git clone https://github.com/bagueDev/V.I.N.CENT
 cd bagueDev-ai-toolkit
 python3 -m venv venv
 source venv/bin/activate
@@ -35,10 +35,10 @@ cp config.example.json config.json
 # → config.json öffnen und Pfade anpassen (llama-server, Modelle, Workspace)
 
 # MCP Server (standalone, port 8000)
-python3 mcp_server.py
+python3 VINCET_MCP.py
 
 # Launcher UI (port 9999)
-python3 llama-launcher.py
+python3 bagueDEV_Launcher.py
 ```
 
 ---
