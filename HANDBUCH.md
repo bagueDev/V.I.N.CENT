@@ -283,6 +283,8 @@ cp config.example.json config.json
 
 # 5. Launcher starten
 python3 bagueDEV-launcher.py
+# MCP Server (standalone, port 8000)
+python3 VINCENT_MCP.py
 
 # 6. Im Browser öffnen
 # → http://localhost:9999
