@@ -121,7 +121,7 @@ Categories:
 | Project Analysis | RAG indexing, codebase analysis |
 | Utilities | Python sandbox, safe command execution (hyperframes, ffmpeg, …) |
 
-Full list → [jarvis_tools.html](jarvis_tools.html)
+Full list → [VINCET_Tools](V.I.N.C.E.N.T. MCP Server.md)
 
 **DE** — 50+ Tools bereitgestellt via [Model Context Protocol](https://modelcontextprotocol.io). Läuft eigenständig auf Port 8000, einsteckbar in jeden MCP-Client (VS Code, Continue.dev, Claude Desktop, …).
 
