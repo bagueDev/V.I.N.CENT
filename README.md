@@ -125,7 +125,7 @@ Full list → [VINCET_Tools](V.I.N.C.E.N.T. MCP Server.md)
 
 **DE** — 50+ Tools bereitgestellt via [Model Context Protocol](https://modelcontextprotocol.io). Läuft eigenständig auf Port 8000, einsteckbar in jeden MCP-Client (VS Code, Continue.dev, Claude Desktop, …).
 
-Vollständige Liste → [V.I.N.CENT_tools.html](V.I.N.C.E.N.T. MCP Server.md)
+Vollständige Liste → [V.I.N.CENT_tools.html](V.I.N.C.E.N.T. MCP Server.md).
 
 ---
 
