@@ -277,13 +277,17 @@ source venv/bin/activate
 pip install -r requirements.txt
 playwright install chromium
 
-# 4. Launcher starten
+# 4. Config anlegen und Pfade anpassen
+cp config.example.json config.json
+# → config.json öffnen: llama-server-Pfad, Modelle-Verzeichnis, Workspace eintragen
+
+# 5. Launcher starten
 python3 llama-launcher.py
 
-# 5. Im Browser öffnen
+# 6. Im Browser öffnen
 # → http://localhost:9999
 
-# 6. Modell auswählen und starten
+# 7. Modell auswählen und starten
 # → Chat öffnen, Tools aktivieren, fertig.
 ```
 
@@ -300,6 +304,8 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 | `llama-launcher.py` | WebUI Launcher (Port 9999) + Chat. Single-File, stdlib only. |
 | `mcp_server.py` | V.I.N.C.E.N.T. MCP Server (Port 8000). 50+ Tools, ChromaDB, h11. |
 | `start.sh` | Startet Launcher + MCP in zwei Terminal-Tabs. |
+| `config.json` | Lokale Konfiguration (Pfade, Ports, erlaubte Verzeichnisse). Nicht im Repo. |
+| `config.example.json` | Vorlage mit Platzhaltern → kopieren, anpassen, starten. |
 | `requirements.txt` | Python-Dependencies (u.a. `sentence-transformers` für Skills). |
 | `browser_subprocess.py` | Playwright-Browser-Prozess (stdin/stdout). Wird vom MCP Server automatisch gestartet. |
 | `AGENTS.md` | KI-Assistenten-Konfiguration (File Writing Strategy, Regeln). |
@@ -316,7 +322,7 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 - **Keine HTML/CSS-Kommentare**: UI-Code wird nicht kommentiert.
 - **Raw Strings**: Eingebettetes HTML in Python mit `r"""..."""`.
 - **Fehlermeldungen**: Auf Deutsch für den User.
-- **Konstanten am Dateianfang**: `LLAMA_SERVER`, `SERVER_PORT`, `DEFAULT_MODELS`.
+- **Konfiguration extern**: Alle Pfade, Ports und Berechtigungen in `config.json` (zentral, von beiden Skripten gelesen). `config.example.json` als Vorlage im Repo.
 
 ### Architecture
 
