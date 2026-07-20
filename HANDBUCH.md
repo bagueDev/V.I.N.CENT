@@ -296,8 +296,16 @@ python3 VINCENT_MCP.py
 # er kommt mit der Python-Standardbibliothek aus.
 # Das venv (requirements.txt, playwright install chromium) wird nur für den MCP Server (VINCENT_MCP.py) benötigt – genauer: für externe Tools wie Playwright, crawl4ai, ChromaDB.
 # Wer diese Tools nicht nutzt, kann den MCP auch ohne venv starten
-# (es fehlen dann halt die entsprechenden Funktionen). Das start.sh aktiviert das venv automatisch, wenn es existiert.
+# (es fehlen dann halt die entsprechenden Funktionen). Das start.sh aktiviert das venv automatisch, wenn es existiert
+## Requirements
+
+- Python 3.10+
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) build (`llama-server` binary)
+- Vulkan-capable GPU recommended (CPU works)
+- Optional: Tavily API key for enhanced search
 ```
+
+
 
 Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 
