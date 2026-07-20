@@ -31,6 +31,8 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 playwright install chromium
+cp config.example.json config.json
+# → config.json öffnen und Pfade anpassen (llama-server, Modelle, Workspace)
 
 # MCP Server (standalone, port 8000)
 python3 mcp_server.py
@@ -141,6 +143,8 @@ Vollständige Liste → [jarvis_tools.html](jarvis_tools.html)
 | **Qwen/Gemma CLI Fix** | `qwen_fixed.jinja` + `gemma_fixed.jinja` für Claude Code CLI-Kompatibilität |
 | **Sampling-Presets** | Chat/Creative/Code-Presets + Custom-Modus mit Extra Flags |
 | **Execute-Whitelist** | `npx`/`ffmpeg`/`node`/`npm`/`pip`/`python3` für kontrollierte Command-Ausführung |
+| **Config extern** | `config.json` → Pfade, Ports, erlaubte Verzeichnisse (alle Skripte lesen zentral) |
+| **Portable Pfade** | `config.example.json` mit Platzhaltern → kopieren, anpassen, starten |
 
 ---
 
