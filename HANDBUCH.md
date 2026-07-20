@@ -266,7 +266,7 @@ Nicht Big Tech.
 
 ```bash
 # 1. Repository klonen
-git clone https://github.com/bagueDev/bagueDev-ai-toolkit
+git clone https://github.com/bagueDev/V.I.N.CENT
 cd bagueDev-ai-toolkit
 
 # 2. Venv erstellen
@@ -282,7 +282,7 @@ cp config.example.json config.json
 # → config.json öffnen: llama-server-Pfad, Modelle-Verzeichnis, Workspace eintragen
 
 # 5. Launcher starten
-python3 llama-launcher.py
+python3 bagueDEV-launcher.py
 
 # 6. Im Browser öffnen
 # → http://localhost:9999
