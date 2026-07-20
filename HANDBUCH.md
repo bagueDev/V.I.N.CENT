@@ -291,6 +291,12 @@ python3 VINCENT_MCP.py
 
 # 7. Modell auswählen und starten
 # → Chat öffnen, Tools aktivieren, fertig.
+
+# Hinweis zu venv: Der Launcher (bagueDEV_Launcher.py) braucht kein venv –
+# er kommt mit der Python-Standardbibliothek aus.
+# Das venv (requirements.txt, playwright install chromium) wird nur für den MCP Server (VINCENT_MCP.py) benötigt – genauer: für externe Tools wie Playwright, crawl4ai, ChromaDB.
+# Wer diese Tools nicht nutzt, kann den MCP auch ohne venv starten
+# (es fehlen dann halt die entsprechenden Funktionen). Das start.sh aktiviert das venv automatisch, wenn es existiert.
 ```
 
 Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
