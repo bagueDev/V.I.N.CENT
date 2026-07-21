@@ -5,6 +5,7 @@
   "launcher_port": 9999,
   "server_port": 8080,
   "mcp_port": 8000,
+  "tavily_api_key": "dein-tavily-api-key",
   "allowed_base": "/pfad/zum/workspace",
   "allowed_paths": [
     "/pfad/zum/workspace",
