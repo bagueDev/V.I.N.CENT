@@ -1,6 +1,11 @@
 ![OS](https://img.shields.io/badge/os-linux-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Vulkan](https://img.shields.io/badge/Vulkan-API-red?logo=vulkan)
 ![llama.cpp](https://img.shields.io/badge/llama.cpp-b9664-orange)
+![AMD](https://img.shields.io/badge/GPU-AMD-red?logo=amd)
+![HTML](https://img.shields.io/badge/UI-HTML%2FJS-e34c26?logo=html5&logoColor=white)
+![MCP](https://img.shields.io/badge/MCP-supported-blueviolet)
+![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-green)
 # bagueDev LLAMA.CPP WEB UI LAUNCHER
 
