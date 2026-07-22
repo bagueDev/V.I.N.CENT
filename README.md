@@ -30,7 +30,10 @@ cd bagueDev/V.I.N.CENT
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+Optional:
 playwright install chromium
+pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
+pip install sentence-transformers
 cp config.example.json config.json
 # → config.json öffnen und Pfade anpassen (llama-server, Modelle, Workspace)
 
