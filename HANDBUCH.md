@@ -275,7 +275,10 @@ source venv/bin/activate
 
 # 3. Dependencies installieren
 pip install -r requirements.txt
+Optional:
 playwright install chromium
+pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
+pip install sentence-transformers
 
 # 4. Config anlegen und Pfade anpassen
 cp config.example.json config.json
