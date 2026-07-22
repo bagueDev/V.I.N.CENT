@@ -90,7 +90,7 @@ This toolkit is for you if you want **MCP tools, browser automation, memory, and
 | **Modell-Bibliothek** | ❌ keine kuratierte Galerie | ✅ gross | ✅ gross |
 
 Ollama ist gut, wenn du **20 Modelle verwalten** und aus einer Bibliothek ziehen willst.
-LM Studio ist gut, wenn du eine **policerte Desktop-Oberfläche** willst.
+LM Studio ist gut, wenn du eine **polierte Desktop-Oberfläche** willst.
 Dieses Toolkit ist für dich, wenn du **MCP-Tools, Browser-Automation, Memory und Hardware-Telemetrie** brauchst — alles lokal, alles kostenlos, ohne Accounts.
 
 ---
