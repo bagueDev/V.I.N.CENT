@@ -412,3 +412,5 @@ Die Einstellungen haben keine Auswirkung auf die Chat-UI – dort gelten die Def
 >
 > GitHub: [github.com/bagueDev](https://github.com/bagueDev)
 > YouTube: [youtube.com/@bagueDev](https://youtube.com/@bagueDev)
+> V.I.N.CENT Video : [youtube.com/@bagueDev](https://youtube.com/watch?v=mbtzmWhiQfU)
+
