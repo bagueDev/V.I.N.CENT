@@ -208,3 +208,4 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - GitHub: [github.com/bagueDev](https://github.com/bagueDev)
 - YouTube: [youtube.com/@bagueDev](https://youtube.com/@bagueDev)
+- V.I.N.CENT Video : [youtube.com/@bagueDev](https://youtube.com/watch?v=mbtzmWhiQfU)
