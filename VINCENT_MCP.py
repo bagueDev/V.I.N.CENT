@@ -2,17 +2,14 @@
 """
 V.I.N.C.E.N.T. MCP Server - Model Context Protocol Server
 
-Dieser Server exponiert V.I.N.C.E.N.T.-Tools für andere MCP-Clients (z.B. llama.cpp WebUI).
-Entwickelt bei bagueDev
-  GitHub: https://github.com/bagueDev
-  YouTube: https://youtube.com/@bagueDev
+Dieser Server exponiert V.I.N.C.E.N.T.-Tools für andere MCP-Clients (z.B. llama.cpp WebUI). Entwickelt bei bagueDev
 
 Verwendung:
-    python VINCENT_MCP.py
+    python mcp_server.py
     
 Der Server läuft standardmäßig auf http://127.0.0.1:8000/mcp
 """
-
+import multiprocessing
 import sys
 import os
 import shutil
@@ -41,43 +38,28 @@ import subprocess
 # MCP Server erstellen
 mcp = FastMCP("V.I.N.C.E.N.T.")
 
-# ── Konfiguration aus config.json ──────────────────────────
-CONFIG_PATH = os.path.join(JARVIS_DIR, "config.json")
-
-def _load_config() -> dict:
-    """Liest config.json. Falls nicht vorhanden, leeres Dict."""
-    try:
-        with open(CONFIG_PATH, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
-    except:
-        return {}
-
-def _get_allowed_paths() -> list:
-    """Gibt die Liste erlaubter Pfade aus config.json + JARVIS_DIR zurück."""
-    paths = [JARVIS_DIR]
-    cfg = _load_config()
-    for key in ("allowed_base", "allowed_paths"):
-        val = cfg.get(key)
-        if isinstance(val, str):
-            val = [val]
-        if isinstance(val, list):
-            for p in val:
-                p = os.path.abspath(os.path.expanduser(p))
-                if p not in paths:
-                    paths.append(p)
-    return paths
+# Verfügbare Pfade (können später konfiguriert werden)
+ALLOWED_PATHS = [
+    "/home/bauedev/Dokumente",
+    "/home/bauedev/Downloads",
+    os.path.expanduser("~")
+]
 
 def get_workspace_dir() -> str:
-    """Lädt den Workspace-Pfad aus config.json (allowed_base) oder JARVIS_DIR."""
-    cfg = _load_config()
-    allowed = cfg.get("allowed_base")
-    if allowed:
-        return os.path.abspath(os.path.expanduser(allowed))
-    return JARVIS_DIR
+    """Lädt den aktuellen Workspace-Pfad aus der Config."""
+    workspace = os.getcwd()
+    try:
+        config_path = os.path.join(JARVIS_DIR, "config.json")
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
+                config = json.load(f)
+                workspace = config.get("allowed_base", workspace)
+    except:
+        pass
+    return workspace
 
 def resolve_path(path: str) -> str:
+    """Löst relative Pfade gegen den aktuellen Workspace-Pfad auf."""
     if not path:
         return path
     if os.path.isabs(path):
@@ -85,10 +67,16 @@ def resolve_path(path: str) -> str:
     return os.path.join(get_workspace_dir(), path)
 
 def is_path_allowed(path: str) -> bool:
+    """Prüft ob der Pfad erlaubt ist."""
     if not path:
         return True
     abs_path = os.path.abspath(os.path.realpath(path))
-    for allowed in _get_allowed_paths():
+    workspace = get_workspace_dir()
+    
+    # Temporäre Liste der erlaubten Pfade inkl. aktuellem Workspace
+    current_allowed = ALLOWED_PATHS + [workspace]
+    
+    for allowed in current_allowed:
         abs_allowed = os.path.abspath(os.path.realpath(allowed))
         if os.path.commonpath([abs_path, abs_allowed]) == abs_allowed:
             return True
@@ -1558,6 +1546,41 @@ def _detect_project_type(root_path: str) -> dict:
     
     return result
 
+def _is_path_allowed(path: str) -> bool:
+    """Prüft ob ein Pfad erlaubt ist (Whitelist)."""
+    try:
+        abs_path = os.path.abspath(os.path.realpath(path))
+        config_path = os.path.join(JARVIS_DIR, "config.json")
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                import json
+                config = json.load(f)
+                allowed = config.get("allowed_base")
+                
+                # Falls allowed ein String ist, in Liste umwandeln
+                if isinstance(allowed, str):
+                    allowed = [allowed]
+                
+                if isinstance(allowed, list):
+                    for a in allowed:
+                        abs_allowed = os.path.abspath(os.path.realpath(a))
+                        if os.path.commonpath([abs_path, abs_allowed]) == abs_allowed:
+                            return True
+    except:
+        pass
+    
+    # Default: allow home directory and JARVIS_DIR
+    home = os.path.expanduser("~")
+    abs_home = os.path.abspath(os.path.realpath(home))
+    abs_jarvis = os.path.abspath(os.path.realpath(JARVIS_DIR))
+    
+    if os.path.commonpath([abs_path, abs_home]) == abs_home:
+        return True
+    if os.path.commonpath([abs_path, abs_jarvis]) == abs_jarvis:
+        return True
+        
+    return False
+
 @mcp.tool()
 def list_skills() -> str:
     """Listet alle selbstgelernten Skills auf."""
@@ -1768,32 +1791,41 @@ def search_memory(query: str, limit: int = 5) -> str:
         _record_tool_call("search_memory", {"query": query, "limit": limit}, False, str(e))
         return f"❌ Fehler: {str(e)}"
 
+
+
+def _exec_in_process(code: str, result_queue: multiprocessing.Queue) -> None:
+    """Führt Code isoliert in einem Kindprozess aus. Läuft NICHT im Hauptprozess."""
+    import io
+    from contextlib import redirect_stdout
+    output = io.StringIO()
+    try:
+        with redirect_stdout(output):
+            exec(code, {"__builtins__": __builtins__})
+        result_queue.put(("ok", output.getvalue()))
+    except Exception as e:
+        result_queue.put(("error", str(e)))
+
+
 @mcp.tool()
 def run_python(code: str) -> str:
     """Führt Python-Code aus (safety limited). Max 8000 Zeichen.
-    
     Args:
         code: Python-Code zum Ausführen (max 8000 Zeichen)
     """
     if len(code) > 8000:
         return f"❌ Code zu groß ({len(code)} Zeichen). Maximal 8000 Zeichen pro Aufruf."
-    # Sicherheitscheck - nur bestimmte Module erlaubt
-    forbidden = ["import os", "import sys", "subprocess", "socket", "requests"]
-    for f in forbidden:
-        if f in code:
-            return f"❌ Nicht erlaubt: {f}"
-    
-    try:
-        import io
-        from contextlib import redirect_stdout
-        
-        output = io.StringIO()
-        exec(code, {"__builtins__": __builtins__})
-        
-        return f"✅ Code ausgeführt\nOutput:\n{output.getvalue()}"
-    except Exception as e:
-        _record_tool_call("run_python", {"code": code[:100]}, False, str(e))
-        return f"❌ Fehler: {str(e)}"
+
+    q = multiprocessing.Queue()
+    p = multiprocessing.Process(target=_exec_in_process, args=(code, q))
+    p.start()
+    p.join(timeout=10)
+    if p.is_alive():
+        p.terminate()
+        _record_tool_call("run_python", {"code": code[:100]}, False, "timeout")
+        return "❌ Timeout (10s) – Code abgebrochen"
+    status, result = q.get()
+    _record_tool_call("run_python", {"code": code[:100]}, status == "ok", result[:100])
+    return f"✅ Code ausgeführt\nOutput:\n{result}" if status == "ok" else f"❌ Fehler: {result}"
 
 # ========== PROJECT & RAG TOOLS ==========
 
@@ -1815,7 +1847,7 @@ def analyze_project(root_path: str = None, filepath: str = None, path: str = Non
         from os import walk
         from os.path import join, basename, relpath, isdir
         
-        if not is_path_allowed(actual_path):
+        if not _is_path_allowed(actual_path):
             return "❌ Zugriff verweigert: Pfad außerhalb der Whitelist."
         if not isdir(actual_path):
             return "❌ Angegebener Pfad ist kein Ordner."
@@ -1897,7 +1929,7 @@ def add_project_to_rag(root_path: str = None, filepath: str = None, path: str = 
             except:
                 pass
         
-        if not is_path_allowed(actual_path):
+        if not _is_path_allowed(actual_path):
             return "❌ Zugriff verweigert."
         if not isdir(actual_path):
             return "❌ Angegebener Pfad ist kein Ordner."
@@ -2998,7 +3030,7 @@ gitGraph
 
 # ========== HYPERFRAMES TOOLS ==========
 
-_SAFE_COMMANDS = ["npx hyperframes", "npx skills", "npx --yes hyperframes", "npx --yes skills", "ffmpeg", "node", "npm", "pip", "python3", "python", "ls", "cat", "mkdir", "rm"]
+_SAFE_COMMANDS = ["npx hyperframes", "npx skills", "npx --yes hyperframes", "npx --yes skills", "ffmpeg", "ls", "cat", "mkdir"]
 
 @mcp.tool()
 def run_command(
@@ -3006,10 +3038,10 @@ def run_command(
     workdir: str = None,
     timeout: int = 120
 ) -> str:
-    """Führt ein erlaubtes Kommando aus (Whitelist: npx, ffmpeg, node, npm, pip, python3, ls, cat, mkdir, rm).
+    """Führt ein erlaubtes Kommando aus (Whitelist: npx hyperframes, ffmpeg, ls, cat, mkdir).
     
     Args:
-        command: Das auszuführende Kommando (z.B. 'npx hyperframes init', 'pip install sentence-transformers')
+        command: Das auszuführende Kommando (z.B. 'npx hyperframes init', 'npx hyperframes render', 'ffmpeg', 'node')
         workdir: Arbeitsverzeichnis (Standard: aktuelles Verzeichnis)
         timeout: Timeout in Sekunden (Standard: 120)
     """
@@ -3019,12 +3051,11 @@ def run_command(
         return f"❌ Kommando nicht erlaubt. Erlaubte Prefixe: {', '.join(_SAFE_COMMANDS)}"
     
     try:
-        cwd = os.path.abspath(workdir) if workdir else _get_allowed_paths()[0]
+        cwd = os.path.abspath(workdir) if workdir else ALLOWED_PATHS[0]
         if workdir and not is_path_allowed(cwd):
             return f"❌ Zugriff verweigert: {cwd} ist nicht in den erlaubten Pfaden"
         run_env = os.environ.copy()
         run_env["npm_config_yes"] = "true"
-        run_env["PIP_REQUIRE_VIRTUALENV"] = "0"
         r = subprocess.run(
             cmd_str.split(),
             capture_output=True,
@@ -3125,13 +3156,7 @@ if __name__ == "__main__":
     print("🚀 Starte V.I.N.C.E.N.T. MCP Server...")
     print(f"📁 Arbeitsverzeichnis: {JARVIS_DIR}")
     print("🔧 Verfügbare Tools: read_file, write_file, list_directory, search_files, ...")
-    if not os.path.exists(CONFIG_PATH):
-        print(f"❌ config.json nicht gefunden unter: {CONFIG_PATH}")
-        print("   ℹ️  Kopiere config.example.json nach config.json und passe die Pfade an.")
-        sys.exit(1)
-    cfg = _load_config()
-    mcp_port = cfg.get("mcp_port", 8000)
-    print(f"🌐 Server läuft auf: http://127.0.0.1:{mcp_port}/mcp")
+    print("🌐 Server läuft auf: http://127.0.0.1:8000/mcp")
     print("\nDrücke Ctrl+C zum Beenden\n")
     
     # Server starten mit h11 + CORS + stateless session mode
@@ -3140,7 +3165,6 @@ if __name__ == "__main__":
 
     mcp.settings.stateless_http = True
     mcp.settings.json_response = True
-    mcp.settings.port = mcp_port
 
     async def run_with_h11():
         import uvicorn
