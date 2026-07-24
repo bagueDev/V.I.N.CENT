@@ -24,6 +24,10 @@
 
 <img width="1280" height="720" alt="Bildschirmfoto vom 2026-06-18 17-36-34" src="https://github.com/user-attachments/assets/14e23b98-d155-4d66-a648-b1185bcb0224" />
 
+# V.I.N.CENT 🤖
+**Virtual Information Network · Centralized Executive Neural Terminal**
+
+📺 **[WATCH THE FULL DEMO ON YOUTUBE]([youtube.com/@bagueDev](https://youtube.com/watch?v=mbtzmWhiQfU))**
 
 ---
 
