@@ -377,6 +377,22 @@ def delete_file(filepath: str = None, path: str = None) -> str:
     except Exception as e:
         return f"❌ Fehler: {str(e)}"
 
+import ipaddress
+import socket
+from urllib.parse import urlparse
+
+def _is_safe_url(url: str) -> bool:
+    """Blockt SSRF: nur http/https, keine internen/privaten Adressen."""
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        if not parsed.hostname:
+            return False
+        ip = socket.gethostbyname(parsed.hostname)
+        return not ipaddress.ip_address(ip).is_private
+    except Exception:
+        return False
 
 @mcp.tool()
 def web_scrape(url: str) -> str:
@@ -385,6 +401,8 @@ def web_scrape(url: str) -> str:
     Args:
         url: URL of the webpage to scrape
     """
+    if not _is_safe_url(url):
+        return "❌ URL nicht erlaubt (ungültiges Schema oder interne/private Adresse)"
     try:
         import asyncio
         from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
@@ -412,13 +430,9 @@ def web_scrape(url: str) -> str:
 
 @mcp.tool()
 def deep_scrape(url: str, max_pages: int = 10, max_depth: int = 2) -> str:
-    """Recursively crawls a website up to N pages and returns all content.
-    
-    Args:
-        url: Starting URL for deep crawl
-        max_pages: Maximum pages to crawl (default 10, max 50)
-        max_depth: Maximum link depth (default 2, max 5)
-    """
+    """..."""
+    if not _is_safe_url(url):
+        return "❌ URL nicht erlaubt (ungültiges Schema oder interne/private Adresse)"
     try:
         import asyncio
         from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, BFSDeepCrawlStrategy
@@ -480,10 +494,12 @@ _browser_subprocess = None
 _browser_lock = threading.Lock()
 
 def _ensure_url(url: str) -> str:
-    """Ensure URL has proper scheme."""
+    """Ensure URL has proper scheme and blocks unsafe/internal targets."""
     url = url.strip()
     if not url.startswith(('http://', 'https://')):
         url = 'https://' + url
+    if not _is_safe_url(url):
+        raise ValueError(f"URL nicht erlaubt (intern/privat oder ungültiges Schema): {url}")
     return url
 
 def _get_browser_subprocess():
@@ -513,7 +529,10 @@ def _send_browser_cmd(action: str, **kwargs) -> dict:
 
 def _sync_browser_open(url: str) -> str:
     """Open URL via subprocess browser."""
-    url = _ensure_url(url)
+    try:
+        url = _ensure_url(url)
+    except ValueError as e:
+        return f"❌ {str(e)}"
     result = _send_browser_cmd("open", url=url)
     if result.get("status") == "ok":
         title = result.get("title", "")
@@ -565,17 +584,6 @@ def _search_amazon_products(query: str, limit: int = 10) -> str:
     except Exception as e:
         return f"❌ Fehler: {str(e)[:80]}"
 
-def browser_search_products(query: str, limit: int = 10) -> str:
-    """Sucht auf Amazon und zeigt Produkte - wrapper mit Fehlerhandling."""
-    try:
-        result = _search_amazon_products(query, limit)
-        _record_tool_call("browser_search_products", {"query": query, "limit": limit}, True, result[:100])
-        return result
-    except RecursionError:
-        return "❌ Bitte erneut versuchen"
-    except Exception as e:
-        _record_tool_call("browser_search_products", {"query": query, "limit": limit}, False, str(e))
-        return f"❌ Fehler: {str(e)[:80]}"
 
 def _deprecated_snapshot() -> str:
     """Get current page content."""
@@ -624,7 +632,10 @@ def _deprecated_screenshot() -> str:
 
 def _sync_browser_navigate(url: str, action: str = "goto") -> str:
     """Navigate to URL."""
-    url = _ensure_url(url)
+    try:
+        url = _ensure_url(url)
+    except ValueError as e:
+        return f"❌ {str(e)}"
     result = _send_browser_cmd("navigate", url=url, action=action)
     if result.get("status") == "ok":
         return f"✅ {url}"
@@ -785,13 +796,6 @@ def _sync_browser_screenshot(path: str) -> str:
         return f"✅ Gespeichert: {path}"
     return f"❌ {result.get('message', 'Fehler')}"
 
-def _sync_browser_navigate(url: str, action: str = "goto") -> str:
-    """Navigate to URL."""
-    url = _ensure_url(url)
-    result = _send_browser_cmd("navigate", url=url, action=action)
-    if result.get("status") == "ok":
-        return f"✅ {url}"
-    return f"❌ {result.get('message', 'Fehler')}"
 
 def _sync_browser_snapshot() -> str:
     """Get current page content."""
@@ -903,10 +907,13 @@ def browser_open(url: str) -> str:
 def browser_search_products(query: str, limit: int = 10) -> str:
     """Sucht auf Amazon und zeigt Produkte mit Name, Preis und Link."""
     try:
-        return _search_amazon_products(query, limit)
+        result = _search_amazon_products(query, limit)
+        _record_tool_call("browser_search_products", {"query": query, "limit": limit}, True, result[:100])
+        return result
     except RecursionError:
         return "❌ Bitte erneut versuchen"
     except Exception as e:
+        _record_tool_call("browser_search_products", {"query": query, "limit": limit}, False, str(e))
         return f"❌ Fehler: {str(e)[:80]}"
 
 @mcp.tool()
