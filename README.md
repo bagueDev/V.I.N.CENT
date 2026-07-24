@@ -27,7 +27,7 @@
 # V.I.N.CENT 🤖
 **Virtual Information Network · Centralized Executive Neural Terminal**
 
-📺 **[WATCH THE FULL DEMO ON YOUTUBE]([youtube.com/@bagueDev](https://youtube.com/watch?v=mbtzmWhiQfU))**
+📺 **[WATCH THE FULL DEMO ON YOUTUBE]([youtube.com/@bagueDev](https://youtube.com/watch?v=mbtzmWhiQfU)**
 
 ---
 
