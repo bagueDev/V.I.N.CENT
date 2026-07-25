@@ -630,29 +630,6 @@ def _sync_browser_type(selector: str, text: str) -> str:
         return f"✅ {result.get('message', 'Getippt')}"
     return f"❌ {result.get('message', 'Fehler')}"
 
-def _sync_browser_snapshot() -> str:
-    """Get current page content."""
-    result = _send_browser_cmd("snapshot")
-    if result.get("status") == "ok":
-        return f"# Snapshot\n\n{result.get('content', '')[:10000]}"
-    return f"❌ {result.get('message', 'Fehler')}"
-
-def _sync_structured_snapshot(url: str = None) -> str:
-    """Get structured elements."""
-    result = _send_browser_cmd("structured")
-    if result.get("status") == "ok":
-        elements = result.get("elements", [])
-        if elements:
-            return "# Interaktive Elemente:\n\n" + "\n".join(elements)
-        return "❌ Keine Elemente"
-    return f"❌ {result.get('message', 'Fehler')}"
-
-def _sync_browser_click(selector: str) -> str:
-    """Click selector."""
-    result = _send_browser_cmd("click", text=selector)
-    if result.get("status") == "ok":
-        return f"✅ {result.get('message', 'Geklickt')}"
-    return f"❌ {result.get('message', 'Fehler')}"
 
 def _sync_auto_click(text: str, url: str = None) -> str:
     """Auto-click with fallback."""
