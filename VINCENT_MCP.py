@@ -1943,7 +1943,7 @@ def list_memory(limit: int = 50) -> str:
         output = [f"📚 **Erinnerungen ({len(ids)})**:\n"]
         for i, (mem_id, doc, meta) in enumerate(zip(ids, docs, metas), 1):
             importance = meta.get("importance", "?") if meta else "?"
-            output.append(f"{i}. **[{importance}]** {doc[:100]}... (ID: {mem_id[:20]}...)")
+            output.append(f"{i}. **[{importance}]** {doc[:100]}... (ID: {mem_id})")
         
         result = "\n".join(output)
         _record_tool_call("list_memory", {"limit": limit}, True, result[:100])
