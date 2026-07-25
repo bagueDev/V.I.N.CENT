@@ -940,13 +940,6 @@ def browser_type(selector: str, text: str) -> str:
     except Exception as e:
         return f"❌ Fehler: {str(e)}"
 
-@mcp.tool()
-def browser_screenshot(path: str = "screenshot.png") -> str:
-    """Takes a screenshot."""
-    try:
-        return _sync_browser_screenshot(path)
-    except Exception as e:
-        return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
 def browser_navigate(url: str, action: str = "goto") -> str:
@@ -1051,13 +1044,6 @@ def browser_screenshot(filepath: str = None, path: str = "screenshot.png") -> st
     except Exception as e:
         return f"❌ Fehler: {str(e)}"
 
-@mcp.tool()
-def browser_navigate(url: str, action: str = "goto") -> str:
-    """Navigate back, forward, or to URL."""
-    try:
-        return _sync_browser_navigate(url, action)
-    except Exception as e:
-        return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
 def browser_new_tab(url: str = "") -> str:
