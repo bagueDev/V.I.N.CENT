@@ -1952,7 +1952,29 @@ def list_memory(limit: int = 50) -> str:
     except Exception as e:
         _record_tool_call("list_memory", {"limit": limit}, False, str(e))
         return f"❌ Fehler beim Laden: {str(e)}"
-
+@mcp.tool()
+def get_memory(memory_id: str) -> str:
+    """Ruft den vollständigen Inhalt einer einzelnen Erinnerung per ID ab.
+    
+    Args:
+        memory_id: Die ID der Erinnerung (aus list_memory oder search_memory)
+    """
+    try:
+        collection = _init_chroma_memory()
+        if collection is None:
+            return "❌ Memory-Kollektion nicht verfügbar."
+        result = collection.get(ids=[memory_id], include=["documents", "metadatas"])
+        if not result.get("ids"):
+            return f"❌ Keine Erinnerung mit ID: {memory_id}"
+        doc = result["documents"][0]
+        meta = result["metadatas"][0] if result.get("metadatas") else {}
+        importance = meta.get("importance", "?") if meta else "?"
+        _record_tool_call("get_memory", {"memory_id": memory_id}, True, doc[:100])
+        return f"**[{importance}]** ID: {memory_id}\n\n{doc}"
+    except Exception as e:
+        _record_tool_call("get_memory", {"memory_id": memory_id}, False, str(e))
+        return f"❌ Fehler: {str(e)}"
+    
 @mcp.tool()
 def delete_memory(memory_id: str) -> str:
     """Löscht einen spezifischen Eintrag aus dem Langzeitgedächtnis.
