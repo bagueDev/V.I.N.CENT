@@ -585,51 +585,6 @@ def _search_amazon_products(query: str, limit: int = 10) -> str:
         return f"❌ Fehler: {str(e)[:80]}"
 
 
-def _deprecated_snapshot() -> str:
-    """Get current page content."""
-    result = _send_browser_cmd("snapshot")
-    if result.get("status") == "ok":
-        return f"# Snapshot\n\n{result.get('content', '')[:10000]}"
-    return f"❌ {result.get('message', 'Fehler')}"
-
-def _deprecated_structured() -> str:
-    """Get structured elements."""
-    result = _send_browser_cmd("structured")
-    if result.get("status") == "ok":
-        elements = result.get("elements", [])
-        if elements:
-            return "# Interaktive Elemente:\n\n" + "\n".join(elements)
-        return "❌ Keine Elemente"
-    return f"❌ {result.get('message', 'Fehler')}"
-
-def _deprecated_click() -> str:
-    """Click selector."""
-    result = _send_browser_cmd("click", text=selector)
-    if result.get("status") == "ok":
-        return f"✅ {result.get('message', 'Geklickt')}"
-    return f"❌ {result.get('message', 'Fehler')}"
-
-def _deprecated_auto_click() -> str:
-    """Auto-click with fallback."""
-    result = _send_browser_cmd("click", text=text)
-    if result.get("status") == "ok":
-        return f"✅ {result.get('message', 'Geklickt')}"
-    return f"❌ {result.get('message', 'Fehler')}"
-
-def _deprecated_type() -> str:
-    """Type into selector."""
-    result = _send_browser_cmd("type", selector=selector, text=text)
-    if result.get("status") == "ok":
-        return f"✅ {result.get('message', 'Getippt')}"
-    return f"❌ {result.get('message', 'Fehler')}"
-
-def _deprecated_screenshot() -> str:
-    """Take screenshot."""
-    result = _send_browser_cmd("screenshot", path=path)
-    if result.get("status") == "ok":
-        return f"✅ Gespeichert: {path}"
-    return f"❌ {result.get('message', 'Fehler')}"
-
 def _sync_browser_navigate(url: str, action: str = "goto") -> str:
     """Navigate to URL."""
     try:
@@ -653,92 +608,9 @@ def _sync_browser_close() -> None:
             pass
     _browser_subprocess = None
 
-def _deprecated_snapshot() -> str:
-    """Get current page content."""
-    global _browser_page
-    if _browser_page is None:
-        return "❌ Bitte zuerst browser_open aufrufen"
-    _browser_page.wait_for_timeout(1000)
-    return f"# Snapshot\n\n{_browser_page.content()[:10000]}"
-
-def _deprecated_structured() -> str:
-    """Get structured elements."""
-    global _browser_page
-    if _browser_page is None:
-        if url:
-            return _sync_browser_open(url)
-        return "❌ Bitte zuerst browser_open aufrufen"
-    
-    if url:
-        _browser_page.goto(url, timeout=30000)
-        _browser_page.wait_for_load_state("domcontentloaded", timeout=15000)
-        _browser_page.wait_for_timeout(3000)
-    
-    try:
-        search = _browser_page.query_selector('#twotabsearchtextbox')
-        if search:
-            return "# Suchfeld gefunden! Nutze: browser_type('#twotabsearchtextbox', 'SUCHBEGRIFF')"
-    except:
-        pass
-    
-    links = _browser_page.query_selector_all("a[href]")
-    buttons = _browser_page.query_selector_all("button")
-    inputs = _browser_page.query_selector_all("input")
-    
-    elements = []
-    ref = 1
-    
-    for link in links[:30]:
-        try:
-            text = link.inner_text()
-            href = link.get_attribute("href")
-            if text.strip() and len(text.strip()) < 80:
-                elements.append(f"[{ref}] LINK: {text.strip()[:50]} → {href}")
-                ref += 1
-        except:
-            pass
-    
-    for btn in buttons[:15]:
-        try:
-            text = btn.inner_text()
-            if text.strip():
-                elements.append(f"[{ref}] BUTTON: {text.strip()[:50]}")
-                ref += 1
-        except:
-            pass
-    
-    for inp in inputs[:10]:
-        try:
-            name = inp.get_attribute("name") or inp.get_attribute("id") or ""
-            placeholder = inp.get_attribute("placeholder") or ""
-            if name or placeholder:
-                elements.append(f"[{ref}] INPUT: name={name}, placeholder={placeholder}")
-                ref += 1
-        except:
-            pass
-    
-    if elements:
-        return "# Interaktive Elemente:\n\n" + "\n".join(elements[:30])
-    return "❌ Keine Elemente"
 
 # Deprecated stubs - redirect to working implementations
-def _deprecated_click(selector: str) -> str:
-    return _sync_browser_click(selector)
 
-def _deprecated_auto_click(text: str, url: str = None) -> str:
-    return _sync_auto_click(text, url)
-
-def _deprecated_snapshot() -> str:
-    return _sync_browser_snapshot()
-
-def _deprecated_structured(url: str = None) -> str:
-    return _sync_structured_snapshot(url)
-
-def _deprecated_type(selector: str, text: str) -> str:
-    return _sync_browser_type(selector, text)
-
-def _deprecated_screenshot(path: str) -> str:
-    return _sync_browser_screenshot(path)
 
 def _deprecated_navigate(url: str, action: str = "goto") -> str:
     return _sync_browser_navigate(url, action)
