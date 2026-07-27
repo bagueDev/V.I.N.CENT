@@ -2,10 +2,13 @@
 """
 V.I.N.C.E.N.T. MCP Server - Model Context Protocol Server
 
-Dieser Server exponiert V.I.N.C.E.N.T.-Tools für andere MCP-Clients (z.B. llama.cpp WebUI). Entwickelt bei bagueDev
+Dieser Server exponiert V.I.N.C.E.N.T.-Tools für andere MCP-Clients (z.B. llama.cpp WebUI).
+Entwickelt bei bagueDev
+  GitHub: https://github.com/bagueDev
+  YouTube: https://youtube.com/@bagueDev
 
 Verwendung:
-    python mcp_server.py
+    python VINCENT_MCP.py
     
 Der Server läuft standardmäßig auf http://127.0.0.1:8000/mcp
 """
