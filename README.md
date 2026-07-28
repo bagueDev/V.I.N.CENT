@@ -139,7 +139,7 @@ Categories:
 | Memory | ChromaDB long-term memory, semantic search |
 | Learning | Skill learning by example, usage stats |
 | Diagrams | Mermaid: architecture, workflows, flowcharts, sequence, mindmaps |
-| Project Analysis | RAG indexing, codebase analysis |
+| Project Analysis | RAG indexing for semantic search, codebase analysis|
 | Utilities | Python sandbox, safe command execution (hyperframes, ffmpeg, …) |
 
 Full list → [VINCET_Tools](https://github.com/bagueDev/V.I.N.CENT/blob/main/V.I.N.C.E.N.T.%20MCP%20Server.md)
