@@ -1,4 +1,5 @@
 # 🤖 V.I.N.C.E.N.T. Tool Suite
+<img width="583" height="311" alt="Bildschirmfoto vom 2026-07-28 16-28-14" src="https://github.com/user-attachments/assets/7762bafc-130d-4b4b-9926-864b5841d685" />
 
 *Vollständige Dokumentation aller verfügbaren Tools in V.I.N.C.E.N.T.*
 
