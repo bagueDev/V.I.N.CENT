@@ -2,13 +2,10 @@
 """
 V.I.N.C.E.N.T. MCP Server - Model Context Protocol Server
 
-Dieser Server exponiert V.I.N.C.E.N.T.-Tools für andere MCP-Clients (z.B. llama.cpp WebUI).
-Entwickelt bei bagueDev
-  GitHub: https://github.com/bagueDev
-  YouTube: https://youtube.com/@bagueDev
+Dieser Server exponiert V.I.N.C.E.N.T.-Tools für andere MCP-Clients (z.B. llama.cpp WebUI). Entwickelt bei bagueDev
 
 Verwendung:
-    python VINCENT_MCP.py
+    python mcp_server.py
     
 Der Server läuft standardmäßig auf http://127.0.0.1:8000/mcp
 """
@@ -599,33 +596,6 @@ def _sync_browser_navigate(url: str, action: str = "goto") -> str:
         return f"✅ {url}"
     return f"❌ {result.get('message', 'Fehler')}"
 
-def _sync_browser_close() -> None:
-    """Close browser subprocess."""
-    global _browser_subprocess
-    if _browser_subprocess:
-        try:
-            _browser_subprocess.stdin.write('{"action": "quit"}\n')
-            _browser_subprocess.stdin.flush()
-            _browser_subprocess.terminate()
-        except:
-            pass
-    _browser_subprocess = None
-
-
-# Deprecated stubs - redirect to working implementations
-
-
-def _deprecated_navigate(url: str, action: str = "goto") -> str:
-    return _sync_browser_navigate(url, action)
-
-# ===== ASYNC VERSIONS (not currently used but kept for reference) =====
-
-async def _async_browser_open(url: str) -> str:
-    """Open URL (async version)."""
-    return _sync_browser_open(url)
-
-# ===== ADDITIONAL BROWSER FUNCTIONS =====
-
 def _sync_browser_type(selector: str, text: str) -> str:
     """Type into selector."""
     result = _send_browser_cmd("type", selector=selector, text=text)
@@ -648,14 +618,6 @@ def _sync_browser_screenshot(path: str) -> str:
         return f"✅ Gespeichert: {path}"
     return f"❌ {result.get('message', 'Fehler')}"
 
-
-def _sync_browser_snapshot() -> str:
-    """Get current page content."""
-    result = _send_browser_cmd("snapshot")
-    if result.get("status") == "ok":
-        return f"# Snapshot\n\n{result.get('content', '')[:10000]}"
-    return f"❌ {result.get('message', 'Fehler')}"
-
 def _sync_structured_snapshot(url: str = None) -> str:
     """Get structured elements."""
     result = _send_browser_cmd("structured")
@@ -672,77 +634,6 @@ def _sync_browser_click(selector: str) -> str:
     if result.get("status") == "ok":
         return f"✅ {result.get('message', 'Geklickt')}"
     return f"❌ {result.get('message', 'Fehler')}"
-
-async def _async_browser_open(url: str):
-    page = _browser_page()
-    await page.goto(url)
-    title = await page.title()
-    content = await page.content()
-    return f"✅ {title}\n\n{content[:3000]}"
-
-async def _async_browser_snapshot():
-    page = _browser_page()
-    content = await page.content()
-    return f"# Snapshot\n\n{content[:10000]}"
-
-async def _async_structured_snapshot(url: str = None):
-    page = _browser_page()
-    
-    if url:
-        await page.goto(url)
-    
-    links = await page.query_selector_all("a[href]")
-    buttons = await page.query_selector_all("button")
-    inputs = await page.query_selector_all("input, select, textarea")
-    navs = await page.query_selector_all("nav a")
-    
-    elements = []
-    ref = 1
-    
-    for nav in navs[:20]:
-        try:
-            text = await nav.inner_text()
-            href = await nav.get_attribute("href")
-            if text.strip():
-                elements.append(f"[{ref}] LINK: {text.strip()} → {href}")
-                ref += 1
-        except:
-                pass
-        
-        for link in links[:30]:
-            try:
-                text = await link.inner_text()
-                href = await link.get_attribute("href")
-                if text.strip() and len(text.strip()) < 100:
-                    elements.append(f"[{ref}] LINK: {text.strip()[:50]} → {href}")
-                    ref += 1
-            except:
-                pass
-        
-        for btn in buttons[:15]:
-            try:
-                text = await btn.inner_text()
-                if text.strip():
-                    elements.append(f"[{ref}] BUTTON: {text.strip()[:50]}")
-                    ref += 1
-            except:
-                pass
-        
-        for inp in inputs[:10]:
-            try:
-                name = await inp.get_attribute("name") or await inp.get_attribute("id") or "unknown"
-                placeholder = await inp.get_attribute("placeholder") or ""
-                input_type = await inp.get_attribute("type") or "text"
-                elements.append(f"[{ref}] INPUT ({input_type}): name={name}, placeholder={placeholder[:30]}")
-                ref += 1
-            except:
-                pass
-        
-        await browser.close()
-        
-        if elements:
-            return "# Interaktive Elemente:\n\n" + "\n".join(elements)
-        return "❌ Keine interaktiven Elemente gefunden"
 
 @mcp.tool()
 def browser_open(url: str) -> str:
@@ -800,78 +691,6 @@ def browser_navigate(url: str, action: str = "goto") -> str:
         return _sync_browser_navigate(url, action)
     except Exception as e:
         return f"❌ Fehler: {str(e)}"
-
-async def _async_browser_click(selector: str):
-    page = _browser_page()
-    try:
-        await page.click(selector, timeout=3000)
-        return f"✅ Geklickt: {selector}"
-    except Exception as e:
-        return f"❌ Fehler: {str(e)}"
-
-async def _async_auto_click(text: str, url: str = None):
-    page = _browser_page()
-    
-    if url:
-        await page.goto(url)
-    
-    # Strategy 1: Exact text
-    try:
-        await page.click(f"text={text}", timeout=2000)
-        return f"✅ Geklickt: {text}"
-    except:
-        pass
-    
-    # Strategy 2: Link contains text
-    try:
-        await page.click(f"a:has-text('{text}')", timeout=2000)
-        return f"✅ Geklickt: {text}"
-    except:
-        pass
-    
-    # Strategy 3: Self-healing - search all elements
-    try:
-        links = await page.query_selector_all("a")
-        for link in links:
-            try:
-                link_text = await link.inner_text()
-                if text.lower() in link_text.lower():
-                    await link.click()
-                    return f"✅ Self-Healed: {link_text.strip()}"
-            except:
-                continue
-    except:
-        pass
-    
-    return f"❌ Auto-Click fehlgeschlagen für '{text}'"
-
-async def _async_browser_type(selector: str, text: str):
-    page = _browser_page()
-    try:
-        await page.fill(selector, text)
-        return f"✅ Getippt: {text}"
-    except Exception as e:
-        return f"❌ Fehler: {str(e)}"
-
-async def _async_browser_screenshot(path: str):
-    page = _browser_page()
-    try:
-        await page.screenshot(path=path)
-        return f"✅ Gespeichert: {path}"
-    except Exception as e:
-        return f"❌ Fehler: {str(e)}"
-
-async def _async_browser_navigate(url: str, action: str):
-    page = _browser_page()
-    if action == "back":
-        await page.go_back()
-        return "✅ Zurück"
-    elif action == "forward":
-        await page.go_forward()
-        return "✅ Vorwärts"
-    else:
-        await page.goto(url)
-        return f"✅ {url}"
 
 @mcp.tool()
 def auto_click(text: str, url: str = "https://example.com") -> str:
