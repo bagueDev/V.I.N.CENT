@@ -20,7 +20,8 @@
 **DE** — Lokales KI-Toolkit rund um `llama.cpp`. Ein GUI-Launcher, damit du nie wieder 50 Flags tippen musst, plus ein 50+ Tool MCP Server – eigenständig oder eingebettet in Claude CLI , VS Code / jeden MCP-Client.
 
 ---
-<img width="1280" height="720" alt="Bildschirmfoto vom 2026-06-18 17-38-20" src="https://github.com/user-attachments/assets/acd892bf-0f38-430e-a117-a8792e74dd92" />
+
+<img width="719" height="927" alt="Bildschirmfoto vom 2026-07-28 16-26-15" src="https://github.com/user-attachments/assets/73aa4f2f-9f38-490b-ab53-e322d21ae072" />
 
 <img width="1280" height="720" alt="Bildschirmfoto vom 2026-06-18 17-36-34" src="https://github.com/user-attachments/assets/14e23b98-d155-4d66-a648-b1185bcb0224" />
 
