@@ -240,7 +240,7 @@ Einfach Modell auswählen → starten → fertig.
 - Automatisierung
 - Developer‑Workflows
 
-### Continue.dev / VS Code Integration
+### Continue.dev / VS Code Integration / Claude Code Integration
 
 Gleiches Modell im Editor.
 Keine Cloud, keine API‑Kosten.
