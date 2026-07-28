@@ -795,9 +795,20 @@ def browser_wait_for_load(timeout: int = 30000) -> str:
 # ========== SELF-LEARNING SYSTEM ==========
 
 _tool_usage_collection = None
+_skill_suggestions_collection = None
 _tool_chain_history = []  # Speichert Tool-Aufruf-Ketten
-_PATTERNS_THRESHOLD = 3  # Nach 3 Aufrufen -> Pattern erkennen
+_PATTERNS_THRESHOLD = 6  # Nach 6 Aufrufen -> Pattern-Kandidat vorschlagen (war 3, zu niedrig -> zu viel Rauschen)
 _MAX_HISTORY = 100  # Max chain history
+
+# Nur diese Tools dürfen überhaupt zu einem Skill-Vorschlag werden.
+# Datei-/Code-Tools bewusst ausgeschlossen: zu variabel, ergeben keine sinnvollen Skills.
+_SKILL_CANDIDATE_WHITELIST = {
+    "browser_open", "browser_search_products", "web_scrape", "deep_scrape",
+    "youtube_trending", "github_trending", "hackernews_trending", "reddit_trending",
+    "google_trends", "weather", "imdb_search", "news_headlines",
+    "duckduckgo_search", "duckduckgo_images",
+    "tavily_search", "tavily_news", "tavily_deep_search",
+}
 
 def _init_chroma_usage():
     """Initialisiere ChromaDB für Tool Usage Tracking."""
@@ -886,8 +897,14 @@ def _record_tool_call(tool_name: str, args, success: bool, output = "") -> None:
         if len(_tool_chain_history) > 100:
             _tool_chain_history = _tool_chain_history[-100:]
     
-    # Auto-pattern creation disabled: noisily creates useless skills
-    # (e.g. "3x hackernews_trending") and desyncs .chroma/ vs chroma_db/.
+    # Passives Pattern-Tracking: erzeugt NIE direkt einen Skill, sondern höchstens
+    # einen Vorschlag in einer separaten Collection. Kein Interrupt, kein Live-Feedback -
+    # läuft komplett still mit, egal ob Recherche-Session oder Coding-Session.
+    if success and tool_name in _SKILL_CANDIDATE_WHITELIST:
+        try:
+            _check_and_create_skill(tool_name, args, success)
+        except Exception:
+            pass
 
 def _detect_patterns() -> list:
     """Erkenne wiederholte Tool-Ketten als Patterns."""
@@ -992,8 +1009,23 @@ def _create_skill_from_pattern(pattern: dict) -> None:
     except Exception as e:
         print(f"Fehler beim Erstellen des Pattern-Skills: {e}")
 
+def _init_chroma_suggestions():
+    """Initialisiere ChromaDB-Collection für Skill-Vorschläge (Kandidaten, noch keine echten Skills)."""
+    global _skill_suggestions_collection
+    if _skill_suggestions_collection is not None:
+        return _skill_suggestions_collection
+    try:
+        import chromadb
+        client = chromadb.PersistentClient(path=CHROMA_DIR)
+        _skill_suggestions_collection = client.get_or_create_collection(name="jarvis_skill_suggestions")
+        return _skill_suggestions_collection
+    except Exception as e:
+        print(f"Suggestions DB init error: {e}")
+        return None
+
 def _check_and_create_skill(tool_name: str, args: dict, success: bool) -> None:
-    """Prüfe ob Skill erstellt werden soll."""
+    """Prüft, ob ein Muster oft genug auftrat, und legt ggf. einen VORSCHLAG an
+    (keinen fertigen Skill). Läuft still im Hintergrund, kein Interrupt."""
     if not success:
         return
     
@@ -1015,13 +1047,53 @@ def _check_and_create_skill(tool_name: str, args: dict, success: bool) -> None:
             count = data.get('count', 0)
             
             if count >= _PATTERNS_THRESHOLD:
-                _create_learned_skill(tool_name, args, data)
+                _suggest_skill(tool_name, args, data)
     except Exception as e:
         print(f"Pattern check error: {e}")
         pass
 
+def _suggest_skill(tool_name: str, base_args: dict, usage_data: dict) -> None:
+    """Legt einen Skill-KANDIDATEN an. Wird erst durch approve_skill() zu einem echten Skill."""
+    suggestions = _init_chroma_suggestions()
+    if not suggestions:
+        return
+    
+    suggestion_id = f"suggest_{tool_name}_{_args_to_hash(base_args)}"
+    
+    # Nicht doppelt vorschlagen
+    try:
+        existing = suggestions.get(ids=[suggestion_id])
+        if existing and existing.get('documents'):
+            return
+    except Exception:
+        pass
+    
+    keyword_parts = []
+    for k, v in base_args.items():
+        if isinstance(v, str) and len(v) < 20:
+            keyword_parts.append(v)
+    keyword = "_".join(keyword_parts[:3]) if keyword_parts else tool_name
+    
+    suggestion_data = {
+        "tool": tool_name,
+        "args": base_args,
+        "usage_count": usage_data.get('count', 0),
+        "keyword": keyword,
+        "description": f"Vorschlag: {tool_name} ({usage_data.get('count', 0)}x genutzt)",
+        "created_at": __import__("time").time(),
+    }
+    
+    try:
+        suggestions.add(
+            ids=[suggestion_id],
+            documents=[json.dumps(suggestion_data)],
+            metadatas=[{"keyword": keyword, "tool": tool_name}]
+        )
+    except Exception as e:
+        print(f"Fehler beim Anlegen des Skill-Vorschlags: {e}")
+
 def _create_learned_skill(tool_name: str, base_args: dict, usage_data: dict) -> str:
-    """Erstelle automatisch einen Skill aus erkanntem Pattern."""
+    """Erstellt einen echten Skill (nur noch aufgerufen via approve_skill, nicht mehr automatisch)."""
     skills_collection = _init_chroma_skills()
     if not skills_collection:
         return "❌ ChromaDB nicht verfügbar"
@@ -1089,6 +1161,64 @@ def learn_skill(tool_name: str, skill_keyword: str, description: str = "") -> st
         return "❌ ChromaDB Fehler"
     except Exception as e:
         return f"❌ Lern-Fehler: {str(e)}"
+
+@mcp.tool()
+def review_learned_patterns() -> str:
+    """Zeigt alle erkannten Skill-Vorschläge (Kandidaten), die noch auf Bestätigung warten.
+    Läuft komplett passiv im Hintergrund - hier rufst du die Ergebnisse aktiv ab."""
+    suggestions = _init_chroma_suggestions()
+    if not suggestions:
+        return "❌ Suggestions DB nicht verfügbar"
+    
+    try:
+        all_data = suggestions.get()
+        if not all_data.get('ids'):
+            return "Noch keine Skill-Vorschläge vorhanden."
+        
+        lines = ["💡 Erkannte Muster (noch nicht als Skill gespeichert):", ""]
+        for sid, doc in zip(all_data['ids'], all_data['documents']):
+            data = json.loads(doc)
+            lines.append(f"- ID: {sid}")
+            lines.append(f"  Tool: {data.get('tool')} | genutzt: {data.get('usage_count')}x | Keyword: {data.get('keyword')}")
+        lines.append("")
+        lines.append("Mit approve_skill(id) übernehmen oder reject_skill(id) verwerfen.")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"❌ Fehler: {str(e)}"
+
+@mcp.tool()
+def approve_skill(pattern_id: str) -> str:
+    """Bestätigt einen Skill-Vorschlag aus review_learned_patterns() und macht ihn zu einem echten Skill."""
+    suggestions = _init_chroma_suggestions()
+    if not suggestions:
+        return "❌ Suggestions DB nicht verfügbar"
+    
+    try:
+        existing = suggestions.get(ids=[pattern_id])
+        if not existing or not existing.get('documents'):
+            return f"❌ Kein Vorschlag mit ID '{pattern_id}' gefunden"
+        
+        data = json.loads(existing['documents'][0])
+        result = _create_learned_skill(data['tool'], data['args'], {"count": data.get('usage_count', 0)})
+        
+        # Vorschlag nach Übernahme entfernen
+        suggestions.delete(ids=[pattern_id])
+        return result
+    except Exception as e:
+        return f"❌ Fehler: {str(e)}"
+
+@mcp.tool()
+def reject_skill(pattern_id: str) -> str:
+    """Verwirft einen Skill-Vorschlag aus review_learned_patterns(), ohne einen Skill anzulegen."""
+    suggestions = _init_chroma_suggestions()
+    if not suggestions:
+        return "❌ Suggestions DB nicht verfügbar"
+    
+    try:
+        suggestions.delete(ids=[pattern_id])
+        return f"✅ Vorschlag verworfen: {pattern_id}"
+    except Exception as e:
+        return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
 def show_tool_usage() -> str:
@@ -1260,7 +1390,7 @@ def list_skills() -> str:
         
         import json
         output = ["# Selbstgelernte Skills:\n"]
-        for i, doc in enumerate(results['documents']):
+        for i, (skill_id, doc) in enumerate(zip(results.get('ids', []), results['documents'])):
             # Handle both string and list of strings
             if isinstance(doc, list):
                 doc = doc[0] if doc else ''
@@ -1282,6 +1412,7 @@ def list_skills() -> str:
                 manual = data.get('manual', False)
                 
                 output.append(f"\n{i+1}. **{name}**")
+                output.append(f"   - ID: {skill_id}")
                 output.append(f"   - Tool: {tool}")
                 if keywords != 'N/A':
                     output.append(f"   - Keywords: {keywords}")
@@ -1365,6 +1496,27 @@ def use_skill(keyword: str) -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+def delete_skill(skill_id: str) -> str:
+    """Löscht einen bereits gelernten Skill (ID aus list_skills()) unwiderruflich.
+    
+    Args:
+        skill_id: Die ID des Skills, z.B. 'manual_amazon_suche' oder 'auto_youtube_trending_ab12cd34ef56'
+    """
+    try:
+        collection = _init_chroma_skills()
+        if not collection:
+            return "❌ ChromaDB nicht verfügbar"
+        
+        existing = collection.get(ids=[skill_id])
+        if not existing or not existing.get('documents'):
+            return f"❌ Kein Skill mit ID '{skill_id}' gefunden. Nutze list_skills() um IDs zu sehen."
+        
+        collection.delete(ids=[skill_id])
+        return f"✅ Skill gelöscht: {skill_id}"
+    except Exception as e:
+        return f"❌ Fehler beim Löschen: {str(e)}"
+
+@mcp.tool()
 def save_memory(fact: str, importance: str = "normal") -> str:
     """Speichere eine Information dauerhaft im Gedächtnis.
     
@@ -1405,7 +1557,8 @@ def save_memory(fact: str, importance: str = "normal") -> str:
 
 @mcp.tool()
 def search_memory(query: str, limit: int = 5) -> str:
-    """Suche in gespeicherten Erinnerungen.
+    """Suche in gespeicherten Erinnerungen (semantische Suche via Embeddings,
+    mit Substring-Fallback falls Embeddings mal nicht verfügbar sind).
     
     Args:
         query: Die Suchanfrage
@@ -1423,6 +1576,30 @@ def search_memory(query: str, limit: int = 5) -> str:
             _chroma_client = chromadb.PersistentClient(path=chroma_dir)
             _memory_collection = _chroma_client.get_or_create_collection(name="jarvis_memory")
         
+        # Erst versuchen: echte semantische Suche über die Collection-eigene Embedding-Funktion
+        # (dieselbe, die beim .add() genutzt wurde -> konsistente Vektoren, kein Modell-Mismatch)
+        try:
+            results = _memory_collection.query(
+                query_texts=[query],
+                n_results=limit,
+                include=["documents", "metadatas", "distances"]
+            )
+            docs = results.get('documents', [[]])[0]
+            metas = results.get('metadatas', [[]])[0]
+            
+            if docs:
+                output = [f"# Erinnerungen zu '{query}' (semantisch, {len(docs)} Treffer):\n"]
+                for i, (doc, meta) in enumerate(zip(docs, metas), 1):
+                    importance = (meta or {}).get('importance', 'normal')
+                    imp_emoji = {"high": "⭐", "normal": "💡", "low": "📝"}.get(importance, "💡")
+                    output.append(f"\n{i}. {imp_emoji} {doc[:100]}")
+                result_str = "\n".join(output)
+                _record_tool_call("search_memory", {"query": query, "limit": limit}, True, result_str[:100])
+                return result_str
+        except Exception as semantic_err:
+            print(f"Semantische Suche fehlgeschlagen, Fallback auf Substring: {semantic_err}")
+        
+        # Fallback: Substring-Suche (z.B. wenn Embedding-Backend gerade nicht verfügbar ist)
         results = _memory_collection.get(include=["documents", "metadatas"])
         
         if not results or not results.get('documents'):
@@ -1443,7 +1620,7 @@ def search_memory(query: str, limit: int = 5) -> str:
         if not matches:
             return f"❌ Keine Ergebnisse für: {query}"
         
-        output = [f"# Erinnerungen zu '{query}' ({len(matches)} Treffer):\n"]
+        output = [f"# Erinnerungen zu '{query}' (Substring-Fallback, {len(matches)} Treffer):\n"]
         for i, m in enumerate(matches[:limit], 1):
             imp_emoji = {"high": "⭐", "normal": "💡", "low": "📝"}.get(m['importance'], "💡")
             output.append(f"\n{i}. {imp_emoji} {m['fact'][:100]}")
@@ -1583,6 +1760,8 @@ def add_project_to_rag(root_path: str = None, filepath: str = None, path: str = 
         return "❌ Fehler: 'root_path', 'filepath' oder 'path' Parameter erforderlich"
     
     try:
+        from os import walk
+        from os.path import join, isdir
         collection = _init_chroma()
         if collection is None:
             return "❌ ChromaDB nicht verfügbar."
