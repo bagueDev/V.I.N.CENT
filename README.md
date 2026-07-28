@@ -30,6 +30,8 @@
 
 📺 **[WATCH THE FULL DEMO ON YOUTUBE]([youtube.com/@bagueDev](https://youtube.com/watch?v=mbtzmWhiQfU)**
 
+<img width="583" height="311" alt="Bildschirmfoto vom 2026-07-28 16-28-14" src="https://github.com/user-attachments/assets/577f2763-f340-495c-8d1a-19c7b3bff5e8" />
+
 ---
 
 ## Quick Start
