@@ -403,6 +403,9 @@ Die Einstellungen haben keine Auswirkung auf die Chat-UI – dort gelten die Def
 |---|---|---|
 | v1.0 | Juni 2026 | Ankündigung. Launcher, Chat, V.I.N.C.E.N.T. MCP Server, ChromaDB, Handbuch. |
 | v1.1 | Juli 2026 | Vorbereitung Erstveröffentlichung. Launcher, Chat, V.I.N.C.E.N.T. MCP Server, ChromaDB, Handbuch. |
+| v1.3-rc1 | Juli 2026 | Konfiguration extern: `config.json`, Sicherheit: Prozess-Isolation `run_python`, SSRF-Schutz, Whitelist verschärft, 134 Zeilen Cleanup, `get_memory()`, `list_memory` ID-Fix. |
+| v1.4-rc1 | 28.07.2026 | Self-Learning überarbeitet: Threshold 3→6, Whitelist für Kandidaten, human-in-the-loop (`approve_skill`/`reject_skill`), ~178 Zeilen toter Code entfernt (Async-Referenzblock, Deprecated-Wrappers). |
+
 
 ---
 
