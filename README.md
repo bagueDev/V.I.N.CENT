@@ -1,3 +1,21 @@
+<!-- Projekt‑Status -->
+![Status](https://img.shields.io/badge/Projekt-aktiv-00A86B?style=for-the-badge)
+![Update Warnung](https://img.shields.io/badge/Update-Warnung-orange?style=for-the-badge)
+![Stabil-Version](https://img.shields.io/badge/Stabil-b9664_+_ClaudeCode_≤_2.1.210-blue?style=for-the-badge)
+> ⚠️ **Update‑Hinweis:**  
+> Der Code bleibt vorerst unverändert, bis alle Tests mit neuen Claude‑Code‑Versionen und llama.cpp‑Builds abgeschlossen sind.  
+> Für maximale Stabilität empfehlen wir weiterhin: **b9664 + Claude Code ≤ 2.1.210**.
+
+<!-- Tech‑Stack -->
+![Local AI](https://img.shields.io/badge/Local_AI-100%25_lokal-8A2BE2?style=for-the-badge)
+![Offline](https://img.shields.io/badge/Offline-keine_Cloud-black?style=for-the-badge)
+![Open Source](https://img.shields.io/badge/Open_Source-GitHub-24292E?style=for-the-badge)
+![MCP Server](https://img.shields.io/badge/MCP_Server-V.I.N.C.E.N.T-1E90FF?style=for-the-badge)
+![llama.cpp](https://img.shields.io/badge/llama.cpp-kompatibel-FF6F00?style=for-the-badge)
+![Claude Code](https://img.shields.io/badge/Claude_Code-getestet-AC1E2D?style=for-the-badge)
+
+
+
 ![OS](https://img.shields.io/badge/os-linux-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Vulkan](https://img.shields.io/badge/Vulkan-API-red?logo=vulkan)
