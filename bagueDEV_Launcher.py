@@ -12,6 +12,7 @@ import json
 import os
 import shlex
 import subprocess
+import sys
 import threading
 import webbrowser
 from pathlib import Path
@@ -46,7 +47,29 @@ LLAMA_SERVER = _cfg["llama_server"]
 DEFAULT_MODELS = _cfg["models_dir"]
 LAUNCHER_PORT = _cfg["launcher_port"]
 SERVER_PORT = _cfg["server_port"]
+ALLOWED_ORIGINS = {
+    "http://localhost:%d" % LAUNCHER_PORT,
+    "http://127.0.0.1:%d" % LAUNCHER_PORT,
+}
 # ──────────────────────────────────────────────────────────────
+
+def _is_origin_allowed(handler):
+    origin = handler.headers.get("Origin", "")
+    if not origin:
+        ref = handler.headers.get("Referer", "")
+        if not ref:
+            return True
+        origin = ref.split("/", 3)[:3]
+        origin = "/".join(origin) if len(origin) == 3 else ""
+        if not origin:
+            return True
+    return origin in ALLOWED_ORIGINS
+
+def _cors_headers(handler):
+    origin = handler.headers.get("Origin", "")
+    if origin in ALLOWED_ORIGINS:
+        handler.send_header("Access-Control-Allow-Origin", origin)
+        handler.send_header("Vary", "Origin")
 
 server_process = None
 # Session-Verzeichnisliste (nur im Speicher)
@@ -269,6 +292,15 @@ HTML_LAUNCHER = r"""<!DOCTYPE html>
       <div class="opt-label">Draft Model (optional)</div>
       <input class="opt-input" id="modelDraft" placeholder="/pfad/zu/mtp-head.gguf – leer lassen für Self-Speculative">
     </div>
+    <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;">
+      <span style="font-size:0.7rem;color:var(--muted);">Reasoning-Format</span>
+      <select id="reasoning" style="width:110px;padding:4px 6px;border-radius:6px;border:1px solid #333;background:#161618;color:#e4e4e7;font-size:.7rem;">
+        <option value="deepseek" selected>deepseek</option>
+        <option value="auto">auto</option>
+        <option value="deepseek-legacy">deepseek-legacy</option>
+        <option value="none">none</option>
+      </select>
+    </div>
     <div class="opt-group" style="grid-column:1/-1;margin-top:8px;">
       <div class="opt-label">Sampling</div>
       <select id="samplingPreset" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #333;background:#161618;color:#e4e4e7;font-size:.8rem;">
@@ -479,6 +511,7 @@ function updatePreview() {
   const mt = document.getElementById('maxTokens').value;
   const fa = document.getElementById('flashAttn').checked ? ' --flash-attn 1' : '';
   const mcp = document.getElementById('mcpProxy').checked ? ' --webui-mcp-proxy' : '';
+  const reasoning = ' --reasoning-format ' + document.getElementById('reasoning').value;
   const ct = document.querySelector('input[name="chatTemplate"]:checked');
   const ctFlag = ct && ct.value === 'qwen' ? ' --chat-template-file qwen_fixed.jinja' : ct && ct.value === 'gemma' ? ' --chat-template-file gemma_fixed.jinja' : '';
   const mtp = document.getElementById('mtp').checked;
@@ -495,7 +528,7 @@ function updatePreview() {
     ' --ctx-size ' + ctx + ' --threads ' + threads + ' --port ' + port +
     ' --cache-type-k ' + cacheTypeK + ' --cache-type-v ' + cacheTypeV +
     ' --batch-size ' + batch + ' --ubatch-size ' + ubatch +
-    ' --n-predict ' + mt + fa + mcp + ctFlag + mtpFlags + getSamplingFlags();
+    ' --n-predict ' + mt + fa + mcp + ctFlag + mtpFlags + getSamplingFlags() + reasoning;
 }
 
 ['ctxSize','ngl','port','threads','batchSize','ubatchSize','maxTokens','specDraftNMax'].forEach(id =>
@@ -504,7 +537,7 @@ function updatePreview() {
 ['cacheTypeK','cacheTypeV'].forEach(id =>
   document.getElementById(id).addEventListener('change', updatePreview)
 );
-['mcpProxy','flashAttn','useJinja','mtp'].forEach(id =>
+['mcpProxy','flashAttn','useJinja','mtp','reasoning'].forEach(id =>
   document.getElementById(id).addEventListener('change', updatePreview)
 );
 document.querySelectorAll('input[name="chatTemplate"]').forEach(el =>
@@ -536,6 +569,7 @@ async function startServer() {
     mcp_proxy: document.getElementById('mcpProxy').checked,
     use_jinja: document.getElementById('useJinja').checked,
     chat_template: document.querySelector('input[name="chatTemplate"]:checked')?.value || '',
+    reasoning: document.getElementById('reasoning').value,
     mtp: document.getElementById('mtp').checked,
     spec_draft_n_max: parseInt(document.getElementById('specDraftNMax').value),
     model_draft: document.getElementById('modelDraft').value.trim(),
@@ -1189,7 +1223,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", len(body))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        _cors_headers(self)
         self.end_headers()
         self.wfile.write(body)
 
@@ -1266,8 +1300,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         global server_process, SERVER_PORT, models_dirs
 
+        if self.path.startswith("/api/"):
+            if not _is_origin_allowed(self):
+                self.send_json({"ok": False, "error": "Fremde Origin blockiert"}, 403)
+                return
+            ctype = self.headers.get("Content-Type", "")
+            if "application/json" not in ctype and self.path in ("/api/start", "/api/stop", "/api/dirs/add", "/api/dirs/remove"):
+                self.send_json({"ok": False, "error": "Content-Type application/json erforderlich"}, 403)
+                return
+
         length = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(length)) if length else {}
+        try:
+            body = json.loads(self.rfile.read(length)) if length else {}
+        except:
+            self.send_json({"ok": False, "error": "Ungültiges JSON"}, 400)
+            return
 
         if self.path == "/api/start":
             if server_process and server_process.poll() is None:
@@ -1303,6 +1350,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "--ubatch-size",  str(ubatch_size),
                 "--n-predict", str(body.get("max_tokens", 2048)),
             ] + mcp_flag + mtp_flag
+            reasoning = body.get("reasoning", "deepseek")
+            if reasoning in ("auto", "none", "deepseek", "deepseek-legacy"):
+                cmd += ["--reasoning-format", reasoning]
             chat_template = body.get("chat_template", "")
             base = os.path.dirname(os.path.abspath(__file__))
             if chat_template == "qwen":
@@ -1370,8 +1420,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        origin = self.headers.get("Origin", "")
+        self.send_response(200 if not origin or origin in ALLOWED_ORIGINS else 403)
+        _cors_headers(self)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
