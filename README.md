@@ -2,9 +2,7 @@
 ![Status](https://img.shields.io/badge/Projekt-aktiv-00A86B?style=for-the-badge)
 ![Update Warnung](https://img.shields.io/badge/Update-Warnung-orange?style=for-the-badge)
 ![Stabil-Version](https://img.shields.io/badge/Stabil-b9664_+_ClaudeCode_≤_2.1.210-blue?style=for-the-badge)
-> ⚠️ **Update‑Hinweis:**  
-> Der Code bleibt vorerst unverändert, bis alle Tests mit neuen Claude‑Code‑Versionen und llama.cpp‑Builds abgeschlossen sind.  
-> Für maximale Stabilität empfehlen wir weiterhin: **b9664 + Claude Code ≤ 2.1.210**.
+
 
 <!-- Tech‑Stack -->
 ![Local AI](https://img.shields.io/badge/Local_AI-100%25_lokal-8A2BE2?style=for-the-badge)
