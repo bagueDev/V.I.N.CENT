@@ -683,11 +683,12 @@ def _search_amazon_products(query: str, limit: int = 10) -> str:
 
 def _sync_browser_navigate(url: str, action: str = "goto") -> str:
     """Navigate to URL."""
-    try:
-        url = _ensure_url(url)
-    except ValueError as e:
-        return f"❌ {str(e)}"
-    result = _send_browser_cmd("navigate", url=url, action=action)
+    if action == "goto":
+        try:
+            url = _ensure_url(url)
+        except ValueError as e:
+            return f"❌ {str(e)}"
+    result = _send_browser_cmd("navigate", url=url, nav_action=action)
     if result.get("status") == "ok":
         return f"✅ {url}"
     return f"❌ {result.get('message', 'Fehler')}"
