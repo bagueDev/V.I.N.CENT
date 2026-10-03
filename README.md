@@ -1,95 +1,52 @@
-<!-- Projekt‑Status -->
-![Status](https://img.shields.io/badge/Projekt-aktiv-00A86B?style=for-the-badge)
-![Update Warnung](https://img.shields.io/badge/Update-Warnung-orange?style=for-the-badge)
-![Stabil-Version](https://img.shields.io/badge/Stabil-b9664_+_ClaudeCode_≤_2.1.210-blue?style=for-the-badge)
+# bagueDev Community Launcher
 
-
-<!-- Tech‑Stack -->
-![Local AI](https://img.shields.io/badge/Local_AI-100%25_lokal-8A2BE2?style=for-the-badge)
-![Offline](https://img.shields.io/badge/Offline-keine_Cloud-black?style=for-the-badge)
-![Open Source](https://img.shields.io/badge/Open_Source-GitHub-24292E?style=for-the-badge)
-![MCP Server](https://img.shields.io/badge/MCP_Server-V.I.N.C.E.N.T-1E90FF?style=for-the-badge)
-![llama.cpp](https://img.shields.io/badge/llama.cpp-kompatibel-FF6F00?style=for-the-badge)
-![Claude Code](https://img.shields.io/badge/Claude_Code-getestet-AC1E2D?style=for-the-badge)
-
-
-
-![OS](https://img.shields.io/badge/os-linux-blue)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![Vulkan](https://img.shields.io/badge/Vulkan-API-red?logo=vulkan)
-![llama.cpp](https://img.shields.io/badge/llama.cpp-b9664-orange)
-![AMD](https://img.shields.io/badge/GPU-AMD-red?logo=amd)
-![HTML](https://img.shields.io/badge/UI-HTML%2FJS-e34c26?logo=html5&logoColor=white)
-![MCP](https://img.shields.io/badge/MCP-supported-blueviolet)
-![Status](https://img.shields.io/badge/status-active-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-green)
-# bagueDev LLAMA.CPP WEB UI LAUNCHER
-
-**bagueDev AI Toolkit** · **V.I.N.C.E.N.T. MCP Server**
+**bagueDev Community Launcher** · **V.I.N.C.E.N.T. MCP Server**
 
 > Virtual Information Network · Centralized Executive Neural Terminal
 
 ---
 
-**EN** — Local AI toolkit built around `llama.cpp`. A GUI launcher so you never type 50 flags again, plus a 50+ tool MCP server that works standalone or embedded in Claude CLI, VS Code / any MCP client.
+**EN** — Local AI toolkit built around `llama.cpp`. A GUI launcher so you never type 50 flags again, plus a 50+ tool MCP server that works standalone or embedded in VS Code / any MCP client.
 
-**DE** — Lokales KI-Toolkit rund um `llama.cpp`. Ein GUI-Launcher, damit du nie wieder 50 Flags tippen musst, plus ein 50+ Tool MCP Server – eigenständig oder eingebettet in Claude CLI , VS Code / jeden MCP-Client.
+**DE** — Lokales KI-Toolkit rund um `llama.cpp`. Ein GUI-Launcher, damit du nie wieder 50 Flags tippen musst, plus ein 50+ Tool MCP Server – eigenständig oder eingebettet in VS Code / jeden MCP-Client.
 
 ---
 
-<img width="719" height="927" alt="Bildschirmfoto vom 2026-07-28 16-26-15" src="https://github.com/user-attachments/assets/73aa4f2f-9f38-490b-ab53-e322d21ae072" />
-
-<img width="1280" height="720" alt="Bildschirmfoto vom 2026-06-18 17-36-34" src="https://github.com/user-attachments/assets/14e23b98-d155-4d66-a648-b1185bcb0224" />
-
-# V.I.N.CENT 🤖
-**Virtual Information Network · Centralized Executive Neural Terminal**
-
-📺 **[WATCH THE FULL DEMO ON YOUTUBE]([youtube.com/@bagueDev](https://youtube.com/watch?v=mbtzmWhiQfU)**
-
-<img width="583" height="311" alt="Bildschirmfoto vom 2026-07-28 16-28-14" src="https://github.com/user-attachments/assets/577f2763-f340-495c-8d1a-19c7b3bff5e8" />
+![bagueDev Community Launcher](screenshots/launcher.png?raw=true)
+![bagueDev Chat](screenshots/chat.png?raw=true)
 
 ---
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/bagueDev/V.I.N.CENT
-cd /V.I.N.CENT 
+git clone https://github.com/bagueDev/community-launcher
+cd community-launcher
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-Optional:
 playwright install chromium
-pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
-pip install sentence-transformers
 cp config.example.json config.json
 # → config.json öffnen und Pfade anpassen (llama-server, Modelle, Workspace)
 
 # MCP Server (standalone, port 8000)
 python3 VINCENT_MCP.py
-
+ 
 # Launcher UI (port 9999)
 python3 bagueDEV_Launcher.py
-
-# Hinweis zu venv: Der Launcher (bagueDEV_Launcher.py) braucht kein venv –
-# er kommt mit der Python-Standardbibliothek aus.
-# Das venv (requirements.txt, playwright install chromium) wird nur für den MCP Server (VINCENT_MCP.py) benötigt – genauer: für externe Tools wie Playwright, crawl4ai, ChromaDB.
-# Wer diese Tools nicht nutzt, kann den MCP auch ohne venv starten
-# (es fehlen dann halt die entsprechenden Funktionen). Das start.sh aktiviert das venv automatisch, wenn es existiert.
 ```
 
----
 ---
 
 ## Why not just Ollama / LM Studio?
 
 **EN** — Fair question. Here is what you get here that you **cannot** get from Ollama or LM Studio:
 
-| Capability | bagueDev Toolkit | Ollama | LM Studio |
+| Capability | Community Launcher | Ollama | LM Studio |
 |---|---|---|---|
 | **MCP Server (50+ tools)** | ✅ built-in — file ops, browser, search, memory, diagram, sandbox | ❌ | ❌ |
 | **Browser automation** | ✅ dedicated Playwright subprocess (click, type, tabs, screenshots) | ❌ | ❌ |
-| **ChromaDB memory** | ✅ semantic long-term memory + skill learning | ❌ | ❌ |
+| **ChromaDB memory** | ✅ semantic long-term memory + skill suggestions (human-in-the-loop) | ❌ | ❌ |
 | **Live hardware telemetry** | ✅ GPU temp, junction, fan, PPT power draw during inference | ❌ | ❌ |
 | **Claude Code CLI** | ✅ works with local models (Qwen, Gemma via template fixes) | ❌ | ❌ |
 | **MCP Proxy** | ✅ proxy tool calls to other MCP servers | ❌ | ❌ |
@@ -104,11 +61,11 @@ This toolkit is for you if you want **MCP tools, browser automation, memory, and
 
 **DE** — Gute Frage. Hier siehst du, was du **nur** hier bekommst:
 
-| Funktion | bagueDev Toolkit | Ollama | LM Studio |
+| Funktion | Community Launcher | Ollama | LM Studio |
 |---|---|---|---|
 | **MCP Server (50+ Tools)** | ✅ integriert — Dateien, Browser, Suche, Memory, Diagramme, Sandbox | ❌ | ❌ |
 | **Browser-Automation** | ✅ eigener Playwright-Prozess (klicken, tippen, Tabs, Screenshots) | ❌ | ❌ |
-| **ChromaDB Memory** | ✅ semantisches Langzeitgedächtnis + Skill-Learning | ❌ | ❌ |
+| **ChromaDB Memory** | ✅ semantisches Langzeitgedächtnis + Skill-Vorschläge (human-in-the-loop) | ❌ | ❌ |
 | **Live-Hardware-Telemetrie** | ✅ GPU-Temp, Junction, Lüfter, PPT während der Inference | ❌ | ❌ |
 | **Claude Code CLI** | ✅ funktioniert mit lokalen Modellen (Qwen, Gemma via Template-Fixes) | ❌ | ❌ |
 | **MCP Proxy** | ✅ Tool-Aufrufe an andere MCP-Server weiterleiten | ❌ | ❌ |
@@ -118,12 +75,10 @@ This toolkit is for you if you want **MCP tools, browser automation, memory, and
 | **Modell-Bibliothek** | ❌ keine kuratierte Galerie | ✅ gross | ✅ gross |
 
 Ollama ist gut, wenn du **20 Modelle verwalten** und aus einer Bibliothek ziehen willst.
-LM Studio ist gut, wenn du eine **polierte Desktop-Oberfläche** willst.
+LM Studio ist gut, wenn du eine **policerte Desktop-Oberfläche** willst.
 Dieses Toolkit ist für dich, wenn du **MCP-Tools, Browser-Automation, Memory und Hardware-Telemetrie** brauchst — alles lokal, alles kostenlos, ohne Accounts.
 
 ---
-
-## Launcher
 
 **EN** — A web UI that takes the pain out of `llama.cpp`. Pick a model from your folders, set parameters with your mouse (ctx, layers, threads, flash-attn, MTP, MCP proxy, sampling presets), and hit start. During inference you get live hardware telemetry: GPU temperature, junction temp, fan speed, PPT power draw, CPU temp, and token throughput.
 
@@ -149,20 +104,20 @@ Categories:
 |---|---|
 | File Operations | read, write, append, search, grep, patch, delete, … |
 | Web Scraping | crawl4ai single-page & deep recursive crawl |
-| Browser | persistent Chrome, click, type, screenshot, tabs, … |
+| Browser | dedicated Playwright subprocess (`browser_subprocess.py`) – click, type, screenshot, tabs, … |
 | Trends | YouTube, GitHub, Hacker News, Reddit, Google Trends, IMDB, Weather, News |
 | Search | DuckDuckGo (web + images), Tavily (web + news + deep) |
 | Memory | ChromaDB long-term memory, semantic search |
-| Learning | Skill learning by example, usage stats |
+| Learning | Skill suggestions with approve/reject workflow, usage stats |
 | Diagrams | Mermaid: architecture, workflows, flowcharts, sequence, mindmaps |
-| Project Analysis | RAG indexing for semantic search, codebase analysis|
+| Project Analysis | RAG indexing, codebase analysis |
 | Utilities | Python sandbox, safe command execution (hyperframes, ffmpeg, …) |
 
-Full list → [VINCET_Tools](https://github.com/bagueDev/V.I.N.CENT/blob/main/V.I.N.C.E.N.T.%20MCP%20Server.md)
+Full list → [jarvis_tools.html](jarvis_tools.html)
 
 **DE** — 50+ Tools bereitgestellt via [Model Context Protocol](https://modelcontextprotocol.io). Läuft eigenständig auf Port 8000, einsteckbar in jeden MCP-Client (VS Code, Continue.dev, Claude Desktop, …).
 
-Vollständige Liste → [V.I.N.CENT_tools.html](V.I.N.C.E.N.T. MCP Server.md).
+Vollständige Liste → [jarvis_tools.html](jarvis_tools.html)
 
 ---
 
@@ -170,7 +125,7 @@ Vollständige Liste → [V.I.N.CENT_tools.html](V.I.N.C.E.N.T. MCP Server.md).
 
 | | |
 |---|---|
-| **Single-File Launcher** | `llama-launcher.py` – stdlib only, zero dependencies |
+| **Single-File Launcher** | `bagueDEV_Launcher.py` – stdlib only, zero dependencies |
 | **Streamable HTTP** | h11 instead of httptools, no payload limits |
 | **Self-Chunking** | Files >16KB are transparently split for writing |
 | **Graceful Fallbacks** | ChromaDB optional, DDGS auto-fallback for Reddit/News |
@@ -179,7 +134,7 @@ Vollständige Liste → [V.I.N.CENT_tools.html](V.I.N.C.E.N.T. MCP Server.md).
 | **Jinja Templates** | `--jinja` only, no chat-template file juggling |
 | **Qwen/Gemma CLI Fix** | `qwen_fixed.jinja` + `gemma_fixed.jinja` für Claude Code CLI-Kompatibilität |
 | **Sampling-Presets** | Chat/Creative/Code-Presets + Custom-Modus mit Extra Flags |
-| **Execute-Whitelist** | `npx`/`ffmpeg`/`node`/`npm`/`pip`/`python3` für kontrollierte Command-Ausführung |
+| **Execute-Whitelist** | `npx hyperframes`/`ffmpeg`/`ls`/`cat`/`mkdir` – kein freier Shell-Zugriff |
 | **Config extern** | `config.json` → Pfade, Ports, erlaubte Verzeichnisse (alle Skripte lesen zentral) |
 | **Portable Pfade** | `config.example.json` mit Platzhaltern → kopieren, anpassen, starten |
 
@@ -200,18 +155,31 @@ Du behältst die Kontrolle über deine Modelle, deine Daten und deine Privatsph�
 ## Requirements
 
 - Python 3.10+
-- [llama.cpp](https://github.com/ggerganov/llama.cpp) build (`llama-server` binary)
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) build (`llama-server` binary) — **b10268+ empfohlen** (nutzt `--reasoning-format`; ältere Builds lecken rohe Reasoning/Tool-Tags in Claude Code)
 - Vulkan-capable GPU recommended (CPU works)
 - Optional: Tavily API key for enhanced search
 
 Install dependencies:
 ```bash
+# torch CPU-only installieren (spart ~4GB CUDA-Pakete)
+pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 playwright install chromium
 crawl4ai-setup   # optional, for deep web scraping
 ```
 
-> `sentence-transformers` (~400 MB) wird automatisch installiert und lädt beim ersten Skill-Aufruf ein Embedding-Modell herunter.
+> `sentence-transformers` braucht `torch`. Ohne `--extra-index-url` werden ~4GB CUDA-Pakete mitinstalliert (unnötig für AMD/CPU). CPU-only torch (~200MB) reicht für Embeddings in ChromaDB.
+
+---
+
+## Known Open Issues
+
+| | |
+|---|---|
+| **`run_command` Splitting** | Nutzt `str.split()` statt `shlex.split()` – kein Escaping/Quoting-Handling bei Shell-Kommandos |
+| **`_is_path_allowed` doppelt** | Zwei Definitionen (Zeile 69 mit `ALLOWED_PATHS`, Zeile 1343 mit `config.json`). Zweite überschreibt erste – alte Version ist toter Code |
+| **`web_scrape` ohne Timeout** | Ein hängender Crawl kann den MCP Server länger blockieren (Sicherheitsrisiko durch SSRF-Fix ausgeschlossen) |
+| **`tools_count` hardcoded** | Status-Endpoint zeigt `"tools_count": 52`, reale Tool-Anzahl ist 55 – nicht dynamisch berechnet |
 
 ---
 
@@ -231,4 +199,3 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - GitHub: [github.com/bagueDev](https://github.com/bagueDev)
 - YouTube: [youtube.com/@bagueDev](https://youtube.com/@bagueDev)
-- V.I.N.CENT Video : [youtube.com/@bagueDev](https://youtube.com/watch?v=mbtzmWhiQfU)
