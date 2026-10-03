@@ -1,6 +1,6 @@
-# bagueDev AI Toolkit v1 – Das Handbuch
+# bagueDev Community Launcher v1 – Das Handbuch
 
-> Stand: Juni 2026 · Version 1.0
+> Stand: August 2026 · Version 1.4-rc2
 
 ---
 
@@ -168,15 +168,15 @@ Die beste Hardware ist die, die du schon hast. Mit der richtigen Software.
 ## 6. Abgrenzung zu anderen Tools
 
 Ja, es gibt bereits Tools wie **Ollama**, **LM Studio** oder **GPT4All**.
-Und ja, viele davon haben mehr Features – aber der Weg dorthin ist steinig.
+Und ja, viele davon haben mehr Komfort-Features – aber hier ist, was **nur wir** können:
 
 ### Feature-Vergleich
 
-| Funktion | bagueDev Toolkit | Ollama | LM Studio |
+| Funktion | Community Launcher | Ollama | LM Studio |
 |---|---|---|---|
 | **MCP Server (50+ Tools)** | ✅ integriert | ❌ | ❌ |
 | **Browser-Automation** | ✅ Playwright (klicken, tippen, Tabs, Screenshots) | ❌ | ❌ |
-| **ChromaDB Memory** | ✅ semantisches Langzeitgedächtnis | ❌ | ❌ |
+| **ChromaDB Memory** | ✅ semantisches Langzeitgedächtnis + Skill-Vorschläge (human-in-the-loop) | ❌ | ❌ |
 | **Live-Hardware-Telemetrie** | ✅ GPU-Temp, Junction, Lüfter, PPT | ❌ | ❌ |
 | **Claude Code CLI Support** | ✅ Qwen+Gemma Template-Fixes | ❌ | ❌ |
 | **MCP Proxy** | ✅ Tool-Calls an andere MCP-Server | ❌ | ❌ |
@@ -184,18 +184,6 @@ Und ja, viele davon haben mehr Features – aber der Weg dorthin ist steinig.
 | **Telemetrie** | **keine** | ⚠️ standardmässig an | ⚠️ eingeschränkt |
 | **Modell-Download** | ❌ manuell | ✅ `ollama pull` | ✅ integriert |
 | **Modell-Bibliothek** | ❌ keine Galerie | ✅ gross | ✅ gross |
-
-
-### Warum wir anders sind
-
-Wir haben uns bewusst entschieden:
-
-- **Kein Electron** – nur HTML + JS im Browser, der eh da ist
-- **Kein Account** – du musst dich nirgends anmelden
-- **Keine Cloud** – kein Server ausser deinem eigenen
-- **Keine Telemetrie** – keine pingt nach Hause
-- **Keine Config-Orgie** – starten und loslegen
-
 
 ### Philosophie
 
@@ -240,7 +228,7 @@ Einfach Modell auswählen → starten → fertig.
 - Automatisierung
 - Developer‑Workflows
 
-### Continue.dev / VS Code Integration / Claude Code Integration
+### Continue.dev / VS Code Integration
 
 Gleiches Modell im Editor.
 Keine Cloud, keine API‑Kosten.
@@ -266,8 +254,8 @@ Nicht Big Tech.
 
 ```bash
 # 1. Repository klonen
-git clone https://github.com/bagueDev/V.I.N.CENT
-cd bagueDev/V.I.N.CENT
+git clone https://github.com/bagueDev/community-launcher
+cd community-launcher
 
 # 2. Venv erstellen
 python3 -m venv venv
@@ -275,40 +263,33 @@ source venv/bin/activate
 
 # 3. Dependencies installieren
 pip install -r requirements.txt
-Optional:
 playwright install chromium
-pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
-pip install sentence-transformers
 
 # 4. Config anlegen und Pfade anpassen
 cp config.example.json config.json
 # → config.json öffnen: llama-server-Pfad, Modelle-Verzeichnis, Workspace eintragen
 
 # 5. Launcher starten
-python3 bagueDEV-launcher.py
-# MCP Server (standalone, port 8000)
-python3 VINCENT_MCP.py
+python3 bagueDEV_Launcher.py
 
 # 6. Im Browser öffnen
 # → http://localhost:9999
 
 # 7. Modell auswählen und starten
 # → Chat öffnen, Tools aktivieren, fertig.
-
-# Hinweis zu venv: Der Launcher (bagueDEV_Launcher.py) braucht kein venv –
-# er kommt mit der Python-Standardbibliothek aus.
-# Das venv (requirements.txt, playwright install chromium) wird nur für den MCP Server (VINCENT_MCP.py) benötigt – genauer: für externe Tools wie Playwright, crawl4ai, ChromaDB.
-# Wer diese Tools nicht nutzt, kann den MCP auch ohne venv starten
-# (es fehlen dann halt die entsprechenden Funktionen). Das start.sh aktiviert das venv automatisch, wenn es existiert
-## Requirements
-
-- Python 3.10+
-- [llama.cpp](https://github.com/ggerganov/llama.cpp) build (`llama-server` binary)
-- Vulkan-capable GPU recommended (CPU works)
-- Optional: Tavily API key for enhanced search
+# → Vorlesen (EN): 🔊-Haken + Stimme (Liam/Heart/Bella/Emma) → Antwort wird via Kokoro
+#   auf :7865 vertont (CPU-Modus, Gradio muss laufen). WAV per Player downloadbar.
+#
+# VRAM-Recipe (CUDA, RTX 3060 12GB): ngl ist ABSOLUT (Layer), kein Prozent!
+# → ngl ≈ Layer × (VRAM frei − ~2 GB Reserve) / Modell-GB (z.B. 26B/30L → ngl 15)
+# → Passt es nicht: ngl halbieren, dann ctx 4096→2048. Ohne -ngl fittet llama selbst.
+#
+# MoE-Recipe (26B/30L, 12GB, Sweet Spot Stufe 15, gemessen):
+# → -ot ".ffn_.*_exps.=CPU" = alle Experten CPU, max. Reserve (~4 GB belegt).
+# → --n-cpu-moe 15 (ohne -ot!) = ~10,2 GB, ~30 t/s Gen, ~115 t/s Prompt (Startwert: 17/55 Full-CPU).
+# → Faustformel: Experten ≈ 420 MB/Layer; ngl 99 lassen, nur n-cpu-moe variieren (20→15→10 testen).
+# → Eng am Limit: bei OOM/spontanen Abbrüchen auf 16/17 zurück. ctx 8192 nur mit mehr CPU-Anteil.
 ```
-
-
 
 Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 
@@ -319,9 +300,9 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 ### Projektstruktur
 
 | Datei | Zweck |
-|---|---|
-| `llama-launcher.py` | WebUI Launcher (Port 9999) + Chat. Single-File, stdlib only. |
-| `mcp_server.py` | V.I.N.C.E.N.T. MCP Server (Port 8000). 50+ Tools, ChromaDB, h11. |
+|---|---|---|
+| `bagueDEV_Launcher.py` | WebUI Launcher (Port 9999) + Chat. Single-File, stdlib only. |
+| `VINCENT_MCP.py` | V.I.N.C.E.N.T. MCP Server (Port 8000). 50+ Tools, ChromaDB, h11. |
 | `start.sh` | Startet Launcher + MCP in zwei Terminal-Tabs. |
 | `config.json` | Lokale Konfiguration (Pfade, Ports, erlaubte Verzeichnisse). Nicht im Repo. |
 | `config.example.json` | Vorlage mit Platzhaltern → kopieren, anpassen, starten. |
@@ -332,10 +313,9 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 | `gemma_fixed.jinja` | Gemma Chat-Template mit Pre-Scan für spätere System-Messages (Fix für Claude Code CLI). |
 | `HANDBUCH.md` | Dieses Handbuch. |
 
-
 ### Coding Conventions
 
-- **Single-File**: Wo möglich alles in einer Datei (`llama-launcher.py`).
+- **Single-File**: Wo möglich alles in einer Datei (`bagueDEV_Launcher.py`).
 - **stdlib only**: Launcher hat null Dependencies. MCP Server nutzt Drittanbieter-Pakete nur wo nötig.
 - **Keine Type Hints**: Nicht erwünscht, ausser explizit angefragt.
 - **Keine HTML/CSS-Kommentare**: UI-Code wird nicht kommentiert.
@@ -353,7 +333,7 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
            │                          │
            ▼                          ▼
 ┌──────────────────────┐   ┌──────────────────────────┐
-│  llama-launcher.py   │   │   mcp_server.py          │
+│  bagueDEV_Launcher.py   │   │   VINCENT_MCP.py          │
 │  (stdlib, single)    │   │   (h11, 50+ Tools)       │
 │  Port 9999           │   │   Port 8000              │
 └──────────┬───────────┘   └───────────┬──────────────┘
@@ -365,6 +345,7 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 │  Port 8080           │   │                          │
 └──────────────────────┘   └──────────────────────────┘
 ```
+
 ### Qwen Jinja-Template Fix
 
 **Problem:** Claude Code CLI sendet System-Messages nicht ausschliesslich an Position 0, sondern auch später im Kontext. Das originale Qwen-Template in llama.cpp (`--jinja`) wirft dann `System message must be at the beginning of the message list.` und bricht ab.
@@ -380,6 +361,37 @@ Das war's. Kein Docker, kein Kubernetes, kein 10‑Seiten‑Setup.
 **Lösung:** `gemma_fixed.jinja` scannt vor dem Rendern **alle** Messages nach `system`/`developer`-Rollen, sammelt deren Content und fügt ihn in den initialen System-Block ein. Alle System-Messages werden aus der Message-Schleife entfernt.
 
 **Launcher:** Radio-Buttons «Default» / «Qwen CLI FIX» / «Gemma CLI FIX» im Optionsbereich (ersetzen die alte Qwen-Checkbox). Nur eine Auswahl gleichzeitig aktiv.
+
+### GPT-OSS Jinja-Template Fix
+
+**Problem:** `gpt-oss-20b` nutzt OpenAI-Harmony (Kanäle `analysis`/`commentary`/`final`) statt ChatML. Das Stock-Template rendert Tool-Schemas per Makro `render_typescript_type` ohne Typ-Prüfung – Claude-Schemas mit Sonderformen lassen Minja crashen: `500 While executing If at line 13 ... Function is not a bool value`. GUI (ohne Tools) läuft, Claude CLI (immer mit Built-in-Tools) nicht.
+
+**Lösung:** `gptoss_fixed.jinja` = Stock-Template + `is mapping`-Guards an allen `.type`/`.items()`/`.oneOf`-Zugriffen. Nicht-Dict-Schemas fallen auf `any` zurück statt 500. Launcher-Radio «GPT-OSS FIX» setzt `--chat-template-file gptoss_fixed.jinja` und Reasoning auto-`none` (Harmony hat keine `<think>`-Tags, Denken kommt aus dem `analysis`-Kanal).
+
+**Modell-Template-Matrix:**
+
+| Modell | Template-Radio | Reasoning |
+|---|---|---|
+| Qwen | Qwen CLI FIX | deepseek |
+| Gemma | Gemma CLI FIX | deepseek |
+| `gpt-oss-20b` | GPT-OSS FIX | `none` (auto) |
+| `Nemotron-3-Nano` | Default | deepseek (`<think>`-Tags) |
+| Rest | Default | deepseek |
+
+### Reasoning-Format (llama.cpp ≥ b10268)
+
+**Problem:** Mit llama.cpp b10268+ leckten rohe Reasoning-/Tool-Tags (` response`, `<tool_call>`, `<|im_start|>`/`<|im_end|>`) in den sichtbaren Chat-Output von Claude Code. Ursache: das alte Flag `--reasoning on/off` steuert das Parsing in neueren Builds nicht mehr sauber, sodass Tool-Calls im Thinking-Block landeten und nicht als strukturierte `tool_calls` extrahiert wurden.
+
+**Lösung:** Das Reasoning-Dropdown im Launcher setzt jetzt `--reasoning-format`:
+
+| Wert | Verhalten |
+|------|-----------|
+| **deepseek** (Default) | Reasoning → `reasoning_content`, Tool-Calls → strukturierte `tool_calls`. Empfohlen für Qwen 3.5 + Gemma 4 mit Claude Code. |
+| auto | llama.cpp-Erkennung (in b10295 faktisch = deepseek) |
+| deepseek-legacy | Älteres Deepseek-Parsing |
+| none | Kein Reasoning-Parsing (tags bleiben ggf. sichtbar) |
+
+Verifiziert gegen `llama-b10295` mit `Qwen3.5-9B-Q4_K_M.gguf` und `gemma-4-E4B-it-Q5_K_M.gguf`: saubere `tool_calls`, leeres `content`, keine gelachten Tags.
 
 ### Sampling-Presets
 
@@ -401,19 +413,15 @@ Die Einstellungen haben keine Auswirkung auf die Chat-UI – dort gelten die Def
 
 | Version | Datum | Änderungen |
 |---|---|---|
-| v1.0 | Juni 2026 | Ankündigung. Launcher, Chat, V.I.N.C.E.N.T. MCP Server, ChromaDB, Handbuch. |
-| v1.1 | Juli 2026 | Vorbereitung Erstveröffentlichung. Launcher, Chat, V.I.N.C.E.N.T. MCP Server, ChromaDB, Handbuch. |
-| v1.3-rc1 | Juli 2026 | Konfiguration extern: `config.json`, Sicherheit: Prozess-Isolation `run_python`, SSRF-Schutz, Whitelist verschärft, 134 Zeilen Cleanup, `get_memory()`, `list_memory` ID-Fix. |
+| v1.1-rc1 | Juli 2026 | Konfiguration extern: `config.json`, Sicherheit: Prozess-Isolation `run_python`, SSRF-Schutz, Whitelist verschärft, 134 Zeilen Cleanup, `get_memory()`, `list_memory` ID-Fix. |
 | v1.4-rc1 | 28.07.2026 | Self-Learning überarbeitet: Threshold 3→6, Whitelist für Kandidaten, human-in-the-loop (`approve_skill`/`reject_skill`), ~178 Zeilen toter Code entfernt (Async-Referenzblock, Deprecated-Wrappers). |
-
+| v1.4-rc2 | 07.08.2026 | llama.cpp b10295-Reasoning-Fix: Dropdown `On/Off` → `--reasoning-format` (`auto`/`deepseek`/`deepseek-legacy`/`none`, Default `deepseek`). Behebt rohe ` response`/`<tool_call>`/`<|im_start|>`-Tags im Claude-Code-Output. Verifiziert mit `llama-b10295` + Qwen3.5/Gemma 4. |
 
 ---
 
-> **bagueDev AI Toolkit v1** – Lokal. Leicht. Fair.
+> **bagueDev Community Launcher v1** – Lokal. Leicht. Fair.
 >
 > MIT License · Copyright © 2026 bagueDev
 >
 > GitHub: [github.com/bagueDev](https://github.com/bagueDev)
 > YouTube: [youtube.com/@bagueDev](https://youtube.com/@bagueDev)
-> V.I.N.CENT Video : [youtube.com/@bagueDev](https://youtube.com/watch?v=mbtzmWhiQfU)
-
