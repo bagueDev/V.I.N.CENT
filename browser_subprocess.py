@@ -390,7 +390,7 @@ def main():
             elif action == "screenshot":
                 result = cmd_screenshot(args.get("path"))
             elif action == "navigate":
-                result = cmd_navigate(args.get("url"), args.get("action", "goto"))
+                result = cmd_navigate(args.get("url"), args.get("nav_action", "goto"))
             elif action == "wait_for":
                 result = cmd_wait_for(args.get("selector"), args.get("timeout", 5000))
             elif action == "wait_for_load":
