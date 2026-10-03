@@ -7,6 +7,7 @@ Entwickelt bei bagueDev
   YouTube: https://youtube.com/@bagueDev
 """
 
+import base64
 import http.server
 import json
 import os
@@ -14,6 +15,7 @@ import shlex
 import subprocess
 import sys
 import threading
+import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -75,6 +77,84 @@ server_process = None
 # Session-Verzeichnisliste (nur im Speicher)
 models_dirs = [DEFAULT_MODELS]
 
+# ── Kokoro-TTS (Gradio auf :7865, immer aktiv) ──────────────────
+KOKORO_URL = "http://127.0.0.1:7865"
+KOKORO_VOICES = {"am_liam", "af_heart", "af_bella", "bf_emma"}
+
+def _gradio_post(path, payload, timeout=90):
+    req = urllib.request.Request(
+        KOKORO_URL + path, data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+def _gradio_get(path, timeout=90):
+    with urllib.request.urlopen(KOKORO_URL + path, timeout=timeout) as r:
+        return r.read()
+
+def kokoro_tts(text, voice="am_liam"):
+    """Text -> WAV-Bytes via Kokoro-Gradio. Fehler als deutsche Meldung (ValueError)."""
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("Kein Text zum Vorlesen.")
+    if len(text) > 2000:
+        raise ValueError("Text zu lang (max. 2000 Zeichen pro Aufruf).")
+    if voice not in KOKORO_VOICES:
+        raise ValueError("Unbekannte Stimme.")
+    try:
+        ev = _gradio_post("/gradio_api/call/generate",
+                           {"data": [text, voice, 1.0, False]})
+        event_id = ev.get("event_id", "")
+        if not event_id:
+            raise ValueError("Keine Event-ID vom Kokoro-Server.")
+    except ValueError:
+        raise
+    except Exception:
+        raise ValueError("Kokoro-Server läuft nicht (:7865).")
+    def _audio_url(obj):
+        if isinstance(obj, dict):
+            if obj.get("url"):
+                return obj["url"]
+            if obj.get("path"):
+                return "/gradio_api/file=" + str(obj["path"])
+        if isinstance(obj, (list, tuple)):
+            for item in obj:
+                found = _audio_url(item)
+                if found:
+                    return found
+        return None
+
+    audio_url = None
+    try:
+        raw = _gradio_get("/gradio_api/call/generate/" + event_id)
+    except Exception:
+        raise ValueError("Kokoro-Server antwortet nicht (:7865).")
+    for line in raw.decode(errors="replace").splitlines():
+        line = line.strip()
+        if not line.startswith("data:"):
+            continue
+        try:
+            msg = json.loads(line[5:].strip())
+        except:
+            continue
+        if isinstance(msg, dict) and msg.get("msg") == "process_completed":
+            audio_url = _audio_url(msg.get("output", {}).get("data", []))
+        else:
+            audio_url = _audio_url(msg)
+        if audio_url:
+            break
+    if not audio_url:
+        raise ValueError("Keine Audio-Datei vom Kokoro-Server erhalten.")
+    try:
+        if audio_url.startswith("http"):
+            with urllib.request.urlopen(audio_url, timeout=30) as r:
+                return r.read()
+        if not audio_url.startswith("/"):
+            audio_url = "/" + audio_url
+        return _gradio_get(audio_url, timeout=30)
+    except Exception:
+        raise ValueError("Audio-Datei konnte nicht geladen werden.")
+
 HTML_LAUNCHER = r"""<!DOCTYPE html>
 <html lang="de">
 <head>
@@ -133,11 +213,12 @@ HTML_LAUNCHER = r"""<!DOCTYPE html>
   .model-size{font-size:0.65rem;color:var(--muted);flex-shrink:0;}
 
   .options{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px;}
+  .options>*{min-width:0;}
   .opt-group{display:flex;flex-direction:column;gap:4px;}
   .opt-label{font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
   .opt-input{background:var(--bg);border:1px solid var(--border);border-radius:4px;
              color:var(--text);font-family:var(--mono);font-size:0.8rem;
-             padding:7px 10px;outline:none;transition:border-color .2s;}
+             padding:7px 10px;outline:none;transition:border-color .2s;width:100%;}
   .opt-input:focus{border-color:var(--accent);}
   .btn-row{display:flex;gap:8px;margin-top:16px;}
   button{border:none;border-radius:7px;padding:10px 20px;font-family:var(--sans);
@@ -195,7 +276,7 @@ HTML_LAUNCHER = r"""<!DOCTYPE html>
 <div style="display:flex;align-items:flex-start;gap:16px;width:100%;max-width:640px;">
   <div style="flex:1;">
     <h1>bagueDev Community Launcher</h1>
-    <div class="sub">llama.cpp · Vulkan · 🐧 Linux Edition</div>
+    <div class="sub">llama.cpp · Vulkan · Nvidia CUDA · 🐧 Linux Edition</div>
   </div>
   <button class="btn-about" onclick="showAbout()" title="About">ℹ</button>
 </div>
@@ -275,26 +356,33 @@ HTML_LAUNCHER = r"""<!DOCTYPE html>
       <input type="checkbox" id="useJinja" checked style="width:16px;height:16px;cursor:pointer;">
       <span style="font-size:0.7rem;color:var(--muted);">Jinja</span>
     </div>
-    <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;">
+    <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;grid-column:1/-1;flex-wrap:wrap;">
       <input type="radio" name="chatTemplate" id="ctDefault" value="" checked style="width:16px;height:16px;cursor:pointer;">
       <span style="font-size:0.7rem;color:var(--muted);">Default</span>
       <input type="radio" name="chatTemplate" id="ctQwen" value="qwen" style="width:16px;height:16px;cursor:pointer;margin-left:4px;">
       <span style="font-size:0.7rem;color:var(--muted);">Qwen CLI FIX</span>
       <input type="radio" name="chatTemplate" id="ctGemma" value="gemma" style="width:16px;height:16px;cursor:pointer;margin-left:4px;">
       <span style="font-size:0.7rem;color:var(--muted);">Gemma CLI FIX</span>
+      <input type="radio" name="chatTemplate" id="ctGptoss" value="gptoss" style="width:16px;height:16px;cursor:pointer;margin-left:4px;">
+      <span style="font-size:0.7rem;color:var(--muted);">GPT-OSS FIX</span>
     </div>
-    <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;">
+    <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;flex-wrap:wrap;">
       <input type="checkbox" id="mtp" style="width:16px;height:16px;cursor:pointer;">
       <span style="font-size:0.7rem;color:var(--muted);">MTP</span>
       <input class="opt-input" id="specDraftNMax" value="4" type="number" min="1" max="16" style="width:50px;padding:4px 6px;">
+    </div>
+    <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;flex-wrap:wrap;">
+      <input type="checkbox" id="cpuMoe" checked style="width:16px;height:16px;cursor:pointer;">
+      <span style="font-size:0.7rem;color:var(--muted);">CPU-MoE</span>
+      <input class="opt-input" id="nCpuMoe" value="15" type="number" min="0" max="128" style="width:50px;padding:4px 6px;">
     </div>
     <div class="opt-group" style="grid-column:1/-1;">
       <div class="opt-label">Draft Model (optional)</div>
       <input class="opt-input" id="modelDraft" placeholder="/pfad/zu/mtp-head.gguf – leer lassen für Self-Speculative">
     </div>
-    <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;">
+    <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;flex-wrap:wrap;">
       <span style="font-size:0.7rem;color:var(--muted);">Reasoning-Format</span>
-      <select id="reasoning" style="width:110px;padding:4px 6px;border-radius:6px;border:1px solid #333;background:#161618;color:#e4e4e7;font-size:.7rem;">
+      <select id="reasoning" style="width:90px;padding:4px 6px;border-radius:6px;border:1px solid #333;background:#161618;color:#e4e4e7;font-size:.7rem;">
         <option value="deepseek" selected>deepseek</option>
         <option value="auto">auto</option>
         <option value="deepseek-legacy">deepseek-legacy</option>
@@ -513,7 +601,8 @@ function updatePreview() {
   const mcp = document.getElementById('mcpProxy').checked ? ' --webui-mcp-proxy' : '';
   const reasoning = ' --reasoning-format ' + document.getElementById('reasoning').value;
   const ct = document.querySelector('input[name="chatTemplate"]:checked');
-  const ctFlag = ct && ct.value === 'qwen' ? ' --chat-template-file qwen_fixed.jinja' : ct && ct.value === 'gemma' ? ' --chat-template-file gemma_fixed.jinja' : '';
+  const ctFlag = ct && ct.value === 'qwen' ? ' --chat-template-file qwen_fixed.jinja' : ct && ct.value === 'gemma' ? ' --chat-template-file gemma_fixed.jinja' : ct && ct.value === 'gptoss' ? ' --chat-template-file gptoss_fixed.jinja' : '';
+  if (ct && ct.value === 'gptoss') document.getElementById('reasoning').value = 'none';
   const mtp = document.getElementById('mtp').checked;
   const specDraftNMax = document.getElementById('specDraftNMax').value;
   const modelDraft = document.getElementById('modelDraft').value.trim();
@@ -522,22 +611,26 @@ function updatePreview() {
     mtpFlags = ' --spec-type draft-mtp --spec-draft-n-max ' + specDraftNMax;
     if (modelDraft) mtpFlags += ' -md ' + modelDraft;
   }
+  const cpuMoe = document.getElementById('cpuMoe').checked;
+  const nCpuMoe = document.getElementById('nCpuMoe').value;
+  let moeFlags = '';
+  if (cpuMoe) moeFlags = ' --n-cpu-moe ' + nCpuMoe;
   document.getElementById('cmdPreview').innerHTML =
     '<span>llama-server</span> -m ' + selectedModel.name +
     ' -ngl ' + ngl +
     ' --ctx-size ' + ctx + ' --threads ' + threads + ' --port ' + port +
     ' --cache-type-k ' + cacheTypeK + ' --cache-type-v ' + cacheTypeV +
     ' --batch-size ' + batch + ' --ubatch-size ' + ubatch +
-    ' --n-predict ' + mt + fa + mcp + ctFlag + mtpFlags + getSamplingFlags() + reasoning;
+    ' --n-predict ' + mt + fa + mcp + ctFlag + mtpFlags + moeFlags + getSamplingFlags() + reasoning;
 }
 
-['ctxSize','ngl','port','threads','batchSize','ubatchSize','maxTokens','specDraftNMax'].forEach(id =>
+['ctxSize','ngl','port','threads','batchSize','ubatchSize','maxTokens','specDraftNMax','nCpuMoe'].forEach(id =>
   document.getElementById(id).addEventListener('input', updatePreview)
 );
 ['cacheTypeK','cacheTypeV'].forEach(id =>
   document.getElementById(id).addEventListener('change', updatePreview)
 );
-['mcpProxy','flashAttn','useJinja','mtp','reasoning'].forEach(id =>
+['mcpProxy','flashAttn','useJinja','mtp','cpuMoe','reasoning'].forEach(id =>
   document.getElementById(id).addEventListener('change', updatePreview)
 );
 document.querySelectorAll('input[name="chatTemplate"]').forEach(el =>
@@ -573,6 +666,8 @@ async function startServer() {
     mtp: document.getElementById('mtp').checked,
     spec_draft_n_max: parseInt(document.getElementById('specDraftNMax').value),
     model_draft: document.getElementById('modelDraft').value.trim(),
+    cpu_moe: document.getElementById('cpuMoe').checked,
+    n_cpu_moe: parseInt(document.getElementById('nCpuMoe').value),
     sampling_preset: document.getElementById('samplingPreset').value,
     sampling_temp: parseFloat(document.getElementById('samplingTemp').value),
     sampling_repeat: parseFloat(document.getElementById('samplingRepeat').value),
@@ -825,8 +920,19 @@ HTML_CHAT = r"""<!DOCTYPE html>
   <textarea id="input" placeholder="Nachricht... (Enter = senden, Shift+Enter = Zeilenumbruch)" rows="1"></textarea>
   <button class="btn-clear" onclick="clearChat()">Leeren</button>
   <button class="btn-clear" onclick="exportChat()">Export MD</button>
+  <label class="btn-clear" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;" title="Antwort vorlesen (Kokoro, Englisch)">
+    <input type="checkbox" id="ttsSpeak" style="width:14px;height:14px;cursor:pointer;">&#128266;
+  </label>
+  <select id="ttsVoice" class="btn-clear" style="cursor:pointer;" title="TTS-Stimme">
+    <option value="am_liam" selected>Liam</option>
+    <option value="af_heart">Heart</option>
+    <option value="af_bella">Bella</option>
+    <option value="bf_emma">Emma</option>
+  </select>
   <button id="sendBtn" onclick="sendMessage()" disabled>Senden</button>
 </div>
+<audio id="ttsAudio" style="display:none;" controls></audio>
+<a id="ttsDl" class="btn-clear" style="display:none;" download="tts.wav">WAV</a>
 
 <aside>
   <div>
@@ -864,9 +970,9 @@ HTML_CHAT = r"""<!DOCTYPE html>
     <div class="section-title">Sensoren</div>
     <div class="sensor-grid" id="sensors">
       <div class="sensor-card"><div class="sensor-label">GPU</div><div class="sensor-value" id="senGpu">--</div></div>
-      <div class="sensor-card"><div class="sensor-label">Junction</div><div class="sensor-value" id="senJunc">--</div></div>
+      <div class="sensor-card"><div class="sensor-label">VRAM</div><div class="sensor-value" id="senJunc">--</div></div>
       <div class="sensor-card"><div class="sensor-label">Fan GPU</div><div class="sensor-value" id="senFan">--</div></div>
-      <div class="sensor-card"><div class="sensor-label">PPT</div><div class="sensor-value" id="senPpt">--</div></div>
+      <div class="sensor-card"><div class="sensor-label">Power</div><div class="sensor-value" id="senPpt">--</div></div>
       <div class="sensor-card"><div class="sensor-label">CPU</div><div class="sensor-value" id="senCpu">--</div></div>
       <div class="sensor-card"><div class="sensor-label">Fan CPU</div><div class="sensor-value" id="senFanCpu">--</div></div>
     </div>
@@ -1086,6 +1192,7 @@ HTML_CHAT = r"""<!DOCTYPE html>
       document.getElementById('statTimeTotal').textContent = totalElapsed.toFixed(1) + 's';
 
       cur.remove(); messages.push({role: 'assistant', content: response});
+      if (document.getElementById('ttsSpeak')?.checked && response.trim()) speakText(response);
       totalCompletionTokens += ct;
       document.getElementById('statTps').textContent = elapsed > 0 ? (ct/elapsed).toFixed(1) : '--';
       document.getElementById('statTotal').textContent = totalPromptTokens + totalCompletionTokens;
@@ -1096,6 +1203,53 @@ HTML_CHAT = r"""<!DOCTYPE html>
       cur.remove(); ac.textContent = 'Fehler: ' + e.message;
     }
     sendBtn.disabled = false; inputEl.focus();
+  }
+
+  function ttsClean(s) {
+    return s.replace(/```[\s\S]*?```/g, ' ').replace(/`([^`]*)`/g, '$1')
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/<[^>]+>/g, ' ').replace(/<\|[^|]*\|>/g, ' ')
+      .replace(/[ \t]+/g, ' ').trim();
+  }
+
+  function ttsChunks(s) {
+    const out = [];
+    let cur = '';
+    for (const part of s.split(/(?<=[.!?])\s+/)) {
+      if ((cur + ' ' + part).trim().length > 2000) { if (cur) out.push(cur.trim()); cur = part; }
+      else cur = (cur + ' ' + part).trim();
+    }
+    if (cur) out.push(cur.trim());
+    return out.length ? out : [s.slice(0, 2000)];
+  }
+
+  async function speakText(text) {
+    const audio = document.getElementById('ttsAudio');
+    try {
+      const clean = ttsClean(text);
+      if (!clean) return;
+      const voice = document.getElementById('ttsVoice').value;
+      const wavs = [];
+      for (const chunk of ttsChunks(clean)) {
+        const r = await fetch('/api/tts', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({text: chunk, voice})
+        });
+        const d = await r.json();
+        if (!d.ok) { console.error('TTS:', d.error); return; }
+        wavs.push(d.audio);
+      }
+      audio.style.display = 'block';
+      let i = 0;
+      audio.onended = () => {
+        i++;
+        if (i < wavs.length) { audio.src = wavs[i]; audio.play().catch(e => console.error('TTS play:', e)); }
+      };
+      audio.src = wavs[0];
+      await audio.play().catch(e => console.error('TTS play:', e));
+      const dl = document.getElementById('ttsDl');
+      if (dl) { dl.href = wavs[0]; dl.style.display = ''; }
+    } catch (e) { console.error('TTS:', e); }
   }
 
   function clearChat() {
@@ -1145,27 +1299,47 @@ HTML_CHAT = r"""<!DOCTYPE html>
       const d = await r.json();
       if (!d.ok || !d.output) return;
       const out = d.output;
-      
-      const amd = out.split('amdgpu-pci-0300')[1] || '';
-       
-      const t = amd.match(/edge:\s+([+-]?[\d.]+)/);
-      const gpuVal = t ? parseFloat(t[1]) : null;
-      const gpuEl = document.getElementById('senGpu');
-      gpuEl.textContent = gpuVal ? gpuVal + '°C' : '--';
-      gpuEl.className = 'sensor-value' + (gpuVal && gpuVal > 75 ? ' hot' : gpuVal && gpuVal < 50 ? ' cool' : '');
-      
-      const j = amd.match(/junction:\s+([+-]?[\d.]+)/);
-      const juncVal = j ? parseFloat(j[1]) : null;
-      const juncEl = document.getElementById('senJunc');
-      juncEl.textContent = juncVal ? juncVal + '°C' : '--';
-      juncEl.className = 'sensor-value' + (juncVal && juncVal > 95 ? ' hot' : juncVal && juncVal < 60 ? ' cool' : '');
-      
-      const gf = amd.match(/fan1:\s+(\d+)\s+RPM/);
-      document.getElementById('senFan').textContent = gf && gf[1] > 0 ? gf[1] + ' RPM' : '--';
-      
-      const p = amd.match(/PPT:\s+([\d.]+)\s+W/);
-      document.getElementById('senPpt').textContent = p ? p[1] + ' W' : '--';
-      
+
+      if (d.gpu && d.gpu.backend === 'nvidia') {
+        const g = d.gpu;
+        const gpuEl = document.getElementById('senGpu');
+        gpuEl.textContent = (g.temp != null ? g.temp + '°C' : '--');
+        gpuEl.className = 'sensor-value' + (g.temp != null && g.temp > 83 ? ' hot' : g.temp != null && g.temp < 40 ? ' cool' : '');
+
+        const vramEl = document.getElementById('senJunc');
+        if (g.vram_used != null && g.vram_total) {
+          const pct = Math.round(g.vram_used / g.vram_total * 100);
+          vramEl.textContent = Math.round(g.vram_used) + ' / ' + Math.round(g.vram_total) + ' MiB (' + pct + '%)';
+          vramEl.className = 'sensor-value' + (pct > 90 ? ' hot' : pct < 30 ? ' cool' : '');
+        } else {
+          vramEl.textContent = '--';
+          vramEl.className = 'sensor-value';
+        }
+
+        document.getElementById('senFan').textContent = (g.fan != null ? g.fan + ' %' : '--');
+        document.getElementById('senPpt').textContent = (g.power != null ? g.power + ' W' : '--');
+      } else {
+        const amd = out.split('amdgpu-pci-0300')[1] || '';
+
+        const t = amd.match(/edge:\s+([+-]?[\d.]+)/);
+        const gpuVal = t ? parseFloat(t[1]) : null;
+        const gpuEl = document.getElementById('senGpu');
+        gpuEl.textContent = gpuVal ? gpuVal + '°C' : '--';
+        gpuEl.className = 'sensor-value' + (gpuVal && gpuVal > 75 ? ' hot' : gpuVal && gpuVal < 50 ? ' cool' : '');
+
+        const j = amd.match(/junction:\s+([+-]?[\d.]+)/);
+        const juncVal = j ? parseFloat(j[1]) : null;
+        const juncEl = document.getElementById('senJunc');
+        juncEl.textContent = juncVal ? juncVal + '°C' : '--';
+        juncEl.className = 'sensor-value' + (juncVal && juncVal > 95 ? ' hot' : juncVal && juncVal < 60 ? ' cool' : '');
+
+        const gf = amd.match(/fan1:\s+(\d+)\s+RPM/);
+        document.getElementById('senFan').textContent = gf && gf[1] > 0 ? gf[1] + ' RPM' : '--';
+
+        const p = amd.match(/PPT:\s+([\d.]+)\s+W/);
+        document.getElementById('senPpt').textContent = p ? p[1] + ' W' : '--';
+      }
+
       const c = out.match(/Package id 0:\s+([+-]?[\d.]+)/);
       const cpuVal = c ? parseFloat(c[1]) : null;
       const cpuEl = document.getElementById('senCpu');
@@ -1288,6 +1462,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 data = {"ok": True, "output": result.stdout}
             except Exception as e:
                 data = {"ok": False, "error": str(e)}
+            # NVIDIA-Zweig (CUDA): strukturierte GPU-Werte, sensors-Output bleibt für CPU/Lüfter
+            try:
+                nv = subprocess.run(
+                    ["nvidia-smi", "--query-gpu=temperature.gpu,power.draw,fan.speed,utilization.gpu,memory.used,memory.total",
+                     "--format=csv,noheader,nounits"],
+                    capture_output=True, text=True, timeout=5)
+                parts = [p.strip() for p in nv.stdout.strip().split(",")]
+                if nv.returncode == 0 and len(parts) == 6:
+                    data["gpu"] = {
+                        "backend": "nvidia",
+                        "temp": float(parts[0]),
+                        "power": float(parts[1]),
+                        "fan": float(parts[2]),
+                        "util": float(parts[3]),
+                        "vram_used": float(parts[4]),
+                        "vram_total": float(parts[5]),
+                    }
+                else:
+                    data["gpu"] = None
+            except Exception:
+                data["gpu"] = None
             self.send_json(data)
 
         elif self.path == "/api/config":
@@ -1335,6 +1530,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 model_draft = body.get("model_draft", "")
                 if model_draft:
                     mtp_flag += ["-md", model_draft]
+            moe_flag = []
+            if body.get("cpu_moe", False):
+                try:
+                    n_cpu_moe = max(0, int(body.get("n_cpu_moe", 15)))
+                except:
+                    n_cpu_moe = 15
+                moe_flag += ["--n-cpu-moe", str(n_cpu_moe)]
             use_jinja = body.get("use_jinja", True)
             cmd = [
                 LLAMA_SERVER,
@@ -1349,13 +1551,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "--batch-size",   str(batch_size),
                 "--ubatch-size",  str(ubatch_size),
                 "--n-predict", str(body.get("max_tokens", 2048)),
-            ] + mcp_flag + mtp_flag
+            ] + mcp_flag + mtp_flag + moe_flag
             reasoning = body.get("reasoning", "deepseek")
+            chat_template = body.get("chat_template", "")
+            if chat_template == "gptoss":
+                reasoning = "none"
             if reasoning in ("auto", "none", "deepseek", "deepseek-legacy"):
                 cmd += ["--reasoning-format", reasoning]
-            chat_template = body.get("chat_template", "")
             base = os.path.dirname(os.path.abspath(__file__))
-            if chat_template == "qwen":
+            if chat_template == "gptoss":
+                cmd += ["--chat-template-file", os.path.join(base, "gptoss_fixed.jinja")]
+            elif chat_template == "qwen":
                 cmd += ["--chat-template-file", os.path.join(base, "qwen_fixed.jinja")]
             elif chat_template == "gemma":
                 cmd += ["--chat-template-file", os.path.join(base, "gemma_fixed.jinja")]
@@ -1414,6 +1620,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if path in models_dirs and len(models_dirs) > 1:
                 models_dirs.remove(path)
             self.send_json({"ok": True, "dirs": models_dirs})
+
+        elif self.path == "/api/tts":
+            try:
+                wav = kokoro_tts(body.get("text", ""), body.get("voice", "am_liam"))
+                self.send_json({"ok": True,
+                                "audio": "data:audio/wav;base64," + base64.b64encode(wav).decode()})
+            except ValueError as e:
+                self.send_json({"ok": False, "error": str(e)})
+            except Exception:
+                self.send_json({"ok": False, "error": "TTS fehlgeschlagen."}, 500)
 
         else:
             self.send_response(404)
