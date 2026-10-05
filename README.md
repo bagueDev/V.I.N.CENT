@@ -172,14 +172,6 @@ crawl4ai-setup   # optional, for deep web scraping
 
 ---
 
-## Known Open Issues
-
-| | |
-|---|---|
-| **`run_command` Splitting** | Nutzt `str.split()` statt `shlex.split()` – kein Escaping/Quoting-Handling bei Shell-Kommandos |
-| **`_is_path_allowed` doppelt** | Zwei Definitionen (Zeile 69 mit `ALLOWED_PATHS`, Zeile 1343 mit `config.json`). Zweite überschreibt erste – alte Version ist toter Code |
-| **`web_scrape` ohne Timeout** | Ein hängender Crawl kann den MCP Server länger blockieren (Sicherheitsrisiko durch SSRF-Fix ausgeschlossen) |
-| **`tools_count` hardcoded** | Status-Endpoint zeigt `"tools_count": 52`, reale Tool-Anzahl ist 55 – nicht dynamisch berechnet |
 
 ---
 
