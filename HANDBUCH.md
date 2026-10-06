@@ -1,6 +1,6 @@
 # bagueDev Community Launcher v1 – Das Handbuch
 
-> Stand: August 2026 · Version 1.4-rc2
+> Stand: Oktober 2026 · Version 1.4-rc5
 
 ---
 
@@ -174,21 +174,23 @@ Und ja, viele davon haben mehr Komfort-Features – aber hier ist, was **nur wir
 
 | Funktion | Community Launcher | Ollama | LM Studio |
 |---|---|---|---|
-| **MCP Server (50+ Tools)** | ✅ integriert | ❌ | ❌ |
-| **Browser-Automation** | ✅ Playwright (klicken, tippen, Tabs, Screenshots) | ❌ | ❌ |
+| **MCP Server (50+ Tools)** | ✅ integriert | ❌ (nur via Dritt-Bridges) | ⚠️ nur Host (fremde Server), kein eigener Tool-Server |
+| **Browser-Automation** | ✅ Playwright (klicken, tippen, Tabs, Screenshots) | ❌ | ⚠️ via MCP-Server (z.B. playwright-mcp), kein eingebauter Browser |
 | **ChromaDB Memory** | ✅ semantisches Langzeitgedächtnis + Skill-Vorschläge (human-in-the-loop) | ❌ | ❌ |
-| **Live-Hardware-Telemetrie** | ✅ GPU-Temp, Junction, Lüfter, PPT | ❌ | ❌ |
+| **Live-Hardware-Telemetrie** | ✅ GPU-Temp, Junction, Lüfter, PPT | ❌ | ⚠️ nur Last/VRAM/tok-s, keine Temp/Lüfter/Power |
 | **Claude Code CLI Support** | ✅ Qwen+Gemma Template-Fixes | ❌ | ❌ |
 | **MCP Proxy** | ✅ Tool-Calls an andere MCP-Server | ❌ | ❌ |
-| **WebUI von jedem Gerät** | ✅ browserbasiert, LAN | ❌ (CLI) | ✅ (Desktop) |
-| **Telemetrie** | **keine** | ⚠️ standardmässig an | ⚠️ eingeschränkt |
+| **WebUI von jedem Gerät** | ✅ browserbasiert, LAN | ❌ (Desktop-App + CLI, kein Browser-/LAN-UI) | ⚠️ nur Desktop, kein Browser-/LAN-Zugriff |
+| **Telemetrie** | **keine** | ⚠️ keine Nutzungs-Telemetrie, aber Update-/Katalog-Calls (teils nicht abschaltbar) | ⚠️ kein Tracking, aber Modell-Suche via eigenem Proxy + Update-Checks |
 | **Modell-Download** | ❌ manuell | ✅ `ollama pull` | ✅ integriert |
 | **Modell-Bibliothek** | ❌ keine Galerie | ✅ gross | ✅ gross |
+
+*LM Studio ist seit v0.3.17 MCP-Host (fremde Server inkl. Playwright nutzbar, kein eigener Tool-Server). Ollama: keine Nutzungs-Telemetrie, aber stündliche Update-Checks + Modell-Katalog-Calls, teils nicht abschaltbar.*
 
 ### Philosophie
 
 Ollama ist gut, wenn du **20 Modelle automatisch verwalten** willst.
-LM Studio ist gut, wenn du eine **policerte Desktop-Oberfläche** willst.
+LM Studio ist gut, wenn du eine **polierte Desktop-Oberfläche** willst.
 
 Wir sind gut, wenn du:
 - Einen **MCP-Server mit 50+ Tools** brauchst (Browser, Memory, Dateien, Web-Scraping, Trends)
