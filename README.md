@@ -15,6 +15,8 @@
 ![bagueDev Community Launcher](screenshots/launcher.png?raw=true)
 ![bagueDev Chat](screenshots/chat.png?raw=true)
 
+https://www.youtube.com/shorts/vFGOiC8peV8
+
 ---
 
 ## Quick Start
