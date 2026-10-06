@@ -44,14 +44,14 @@ python3 bagueDEV_Launcher.py
 
 | Capability | Community Launcher | Ollama | LM Studio |
 |---|---|---|---|
-| **MCP Server (50+ tools)** | ✅ built-in — file ops, browser, search, memory, diagram, sandbox | ❌ | ❌ |
-| **Browser automation** | ✅ dedicated Playwright subprocess (click, type, tabs, screenshots) | ❌ | ❌ |
+| **MCP Server (50+ tools)** | ✅ built-in — file ops, browser, search, memory, diagram, sandbox | ❌ (3rd-party bridges only) | ⚠️ host only (3rd-party servers), no built-in tool server |
+| **Browser automation** | ✅ dedicated Playwright subprocess (click, type, tabs, screenshots) | ❌ | ⚠️ via MCP server (e.g. playwright-mcp), no built-in browser |
 | **ChromaDB memory** | ✅ semantic long-term memory + skill suggestions (human-in-the-loop) | ❌ | ❌ |
-| **Live hardware telemetry** | ✅ GPU temp, junction, fan, PPT power draw during inference | ❌ | ❌ |
+| **Live hardware telemetry** | ✅ GPU temp, junction, fan, PPT power draw during inference | ❌ | ⚠️ load/VRAM/tok-s only, no temp/fan/power |
 | **Claude Code CLI** | ✅ works with local models (Qwen, Gemma via template fixes) | ❌ | ❌ |
 | **MCP Proxy** | ✅ proxy tool calls to other MCP servers | ❌ | ❌ |
-| **Web UI from any device** | ✅ browser-based, accessible on your LAN | ❌ (CLI only) | ✅ (desktop only) |
-| **Telemetry** | **none** — zero, not even opt-in | ⚠️ on by default | ⚠️ limited |
+| **Web UI from any device** | ✅ browser-based, accessible on your LAN | ❌ (desktop app + CLI, no browser/LAN UI) | ⚠️ desktop only, no browser/LAN access |
+| **Telemetry** | **none** — zero, not even opt-in | ⚠️ no usage telemetry, but update/catalog calls (partly non-disableable) | ⚠️ no tracking, but model search via own proxy + update checks |
 | **Model download** | ❌ manual GGUF placement | ✅ `ollama pull` | ✅ built-in |
 | **Model library** | ❌ no curated gallery | ✅ large | ✅ large |
 
@@ -59,24 +59,28 @@ Ollama is great if you want to **manage 20 models** and pull them from a library
 LM Studio is great if you want a **polished desktop GUI**.
 This toolkit is for you if you want **MCP tools, browser automation, memory, and hardware telemetry** — all local, all free, no accounts.
 
+*LM Studio acts as MCP host since v0.3.17 (any 3rd-party server incl. Playwright usable, no built-in tool server). Ollama: no usage telemetry, but hourly update checks + model catalog calls, partly non-disableable.*
+
 **DE** — Gute Frage. Hier siehst du, was du **nur** hier bekommst:
 
 | Funktion | Community Launcher | Ollama | LM Studio |
 |---|---|---|---|
-| **MCP Server (50+ Tools)** | ✅ integriert — Dateien, Browser, Suche, Memory, Diagramme, Sandbox | ❌ | ❌ |
-| **Browser-Automation** | ✅ eigener Playwright-Prozess (klicken, tippen, Tabs, Screenshots) | ❌ | ❌ |
+| **MCP Server (50+ Tools)** | ✅ integriert — Dateien, Browser, Suche, Memory, Diagramme, Sandbox | ❌ (nur via Dritt-Bridges) | ⚠️ nur Host (fremde Server), kein eigener Tool-Server |
+| **Browser-Automation** | ✅ eigener Playwright-Prozess (klicken, tippen, Tabs, Screenshots) | ❌ | ⚠️ via MCP-Server (z.B. playwright-mcp), kein eingebauter Browser |
 | **ChromaDB Memory** | ✅ semantisches Langzeitgedächtnis + Skill-Vorschläge (human-in-the-loop) | ❌ | ❌ |
-| **Live-Hardware-Telemetrie** | ✅ GPU-Temp, Junction, Lüfter, PPT während der Inference | ❌ | ❌ |
+| **Live-Hardware-Telemetrie** | ✅ GPU-Temp, Junction, Lüfter, PPT während der Inference | ❌ | ⚠️ nur Last/VRAM/tok-s, keine Temp/Lüfter/Power |
 | **Claude Code CLI** | ✅ funktioniert mit lokalen Modellen (Qwen, Gemma via Template-Fixes) | ❌ | ❌ |
 | **MCP Proxy** | ✅ Tool-Aufrufe an andere MCP-Server weiterleiten | ❌ | ❌ |
-| **WebUI von jedem Gerät** | ✅ browserbasiert, via LAN erreichbar | ❌ (nur CLI) | ✅ (nur Desktop) |
-| **Telemetrie** | **keine** — null, nicht mal opt-in | ⚠️ standardmässig an | ⚠️ eingeschränkt |
+| **WebUI von jedem Gerät** | ✅ browserbasiert, via LAN erreichbar | ❌ (Desktop-App + CLI, kein Browser-/LAN-UI) | ⚠️ nur Desktop, kein Browser-/LAN-Zugriff |
+| **Telemetrie** | **keine** — null, nicht mal opt-in | ⚠️ keine Nutzungs-Telemetrie, aber Update-/Katalog-Calls (teils nicht abschaltbar) | ⚠️ kein Tracking, aber Modell-Suche via eigenem Proxy + Update-Checks |
 | **Modell-Download** | ❌ manuelle GGUF-Platzierung | ✅ `ollama pull` | ✅ integriert |
 | **Modell-Bibliothek** | ❌ keine kuratierte Galerie | ✅ gross | ✅ gross |
 
 Ollama ist gut, wenn du **20 Modelle verwalten** und aus einer Bibliothek ziehen willst.
-LM Studio ist gut, wenn du eine **policerte Desktop-Oberfläche** willst.
+LM Studio ist gut, wenn du eine **polierte Desktop-Oberfläche** willst.
 Dieses Toolkit ist für dich, wenn du **MCP-Tools, Browser-Automation, Memory und Hardware-Telemetrie** brauchst — alles lokal, alles kostenlos, ohne Accounts.
+
+*LM Studio ist seit v0.3.17 MCP-Host (fremde Server inkl. Playwright nutzbar, kein eigener Tool-Server). Ollama: keine Nutzungs-Telemetrie, aber stündliche Update-Checks + Modell-Katalog-Calls, teils nicht abschaltbar.*
 
 ---
 
@@ -113,11 +117,11 @@ Categories:
 | Project Analysis | RAG indexing, codebase analysis |
 | Utilities | Python sandbox, safe command execution (hyperframes, ffmpeg, …) |
 
-Full list → [jarvis_tools.html](jarvis_tools.html)
+Full list → [V.I.N.C.E.N.T. MCP Server.md](<V.I.N.C.E.N.T. MCP Server.md>)
 
 **DE** — 50+ Tools bereitgestellt via [Model Context Protocol](https://modelcontextprotocol.io). Läuft eigenständig auf Port 8000, einsteckbar in jeden MCP-Client (VS Code, Continue.dev, Claude Desktop, …).
 
-Vollständige Liste → [jarvis_tools.html](jarvis_tools.html)
+Vollständige Liste → [V.I.N.C.E.N.T. MCP Server.md](<V.I.N.C.E.N.T. MCP Server.md>)
 
 ---
 
