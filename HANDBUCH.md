@@ -1,6 +1,6 @@
 # bagueDev Community Launcher v1 – Das Handbuch
 
-> Stand: Oktober 2026 · Version 1.2-RC1
+> Stand: August 2026 · Version 1.4-rc2
 
 ---
 
@@ -98,16 +98,16 @@ Während die Industrie ihre H100-Cluster hochzieht, sieht die Realität für nor
 
 VRAM ist der limitierende Faktor – und gebrauchte GPUs liefern genau das, oft zum halben Preis:
 
-| GPU | VRAM | Neupreis | Gebraucht 2026 | Perfekt für |
+| GPU | VRAM | Neupreis | Gebraucht Okt 2026 | Perfekt für |
 |---|---|---|---|---|
-| **RTX 3060 12GB** | 12 GB | ~330 € | ~150–200 € | 7B Modelle, Einsteiger |
-| **RTX 3080** | 10 GB | ~700 € | ~350–400 € | 7B–13B, solide |
-| **RTX 3090** | 24 GB | ~1.500 € | ~800–900 € | 13B–34B, bester Deal |
-| **RX 6800 XT** | 16 GB | ~650 € | ~300–350 € | 7B–13B, AMD-Alternative |
-| **RTX 4070 Ti** | 12 GB | ~800 € | ~600–650 € | 7B Modelle, effizient |
-| **RTX 4090** | 24 GB | ~1.800 € | ~1.700–2.200 € | 34B–70B, High-End |
+| **RTX 3060 12GB** | 12 GB | ~430 € | ~200–280 € | 7B Modelle, Einsteiger |
+| **RTX 3080** | 10 GB | EOL (~720 €) | ~350–415 € | 7B–13B, solide |
+| **RTX 3090** | 24 GB | EOL (~1.550 €) | ~1.000–1.300 € | 13B–34B, bester Deal |
+| **RX 6800 XT** | 16 GB | EOL (~650 €) | ~300–400 € | 7B–13B, AMD-Alternative |
+| **RTX 4070 Ti** | 12 GB | ~1.150 € | ~600–700 € | 7B Modelle, effizient |
+| **RTX 4090** | 24 GB | ~2.100 € | ~1.900–2.200 € | 34B–70B, High-End |
 
-Was uns das sagt: Eine gebrauchte RTX 3090 für ~800 € schlägt fast jede Neukarte – doppelter VRAM zum halben Preis. Und wer gar keine GPU hat, startet einfach mit CPU-only. llama.cpp läuft auf jeder CPU.
+Was uns das sagt: Eine gebrauchte RTX 3090 für ~1.100 € schlägt fast jede Neukarte in ihrer VRAM-Klasse – 24 GB zum halben 4090-Preis. Und wer gar keine GPU hat, startet einfach mit CPU-only. llama.cpp läuft auf jeder CPU.
 
 **Deshalb ist dieses Toolkit darauf ausgelegt, genau diese gebrauchten, aber leistungsfähigen Konfigurationen maximal auszulasten.** Kein Overhead, keine unnötigen Libraries – nur Software, die macht was sie soll.
 
