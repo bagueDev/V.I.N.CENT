@@ -11,9 +11,11 @@
 **DE** — Lokales KI-Toolkit rund um `llama.cpp`. Ein GUI-Launcher, damit du nie wieder 50 Flags tippen musst, plus ein 50+ Tool MCP Server – eigenständig oder eingebettet in VS Code / jeden MCP-Client.
 
 ---
-recent:///c3dabf48e96ca8e6f1447bbb6ada68d0
-
 ![bagueDev Community Launcher]
+<img width="937" height="1290" alt="Bildschirmfoto vom 2026-10-22 21-48-39" src="https://github.com/user-attachments/assets/e1d76322-2d50-42e8-80fe-7fea2143072f" />
+
+
+
 ![bagueDev Chat](screenshots/chat.png?raw=true)
 
 https://www.youtube.com/shorts/vFGOiC8peV8
