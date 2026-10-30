@@ -256,8 +256,8 @@ Nicht Big Tech.
 
 ```bash
 # 1. Repository klonen
-git clone https://github.com/bagueDev/community-launcher
-cd community-launcher
+git clone https://github.com/bagueDev/V.I.N.CENT
+cd V.I.N.CENT
 
 # 2. Venv erstellen
 python3 -m venv venv
