@@ -25,8 +25,8 @@ https://www.youtube.com/shorts/vFGOiC8peV8
 ## Quick Start
 
 ```bash
-git clone https://github.com/bagueDev/community-launcher
-cd community-launcher
+git clone https://github.com/bagueDev/V.I.N.CENT
+cd V.I.N.CENT
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
