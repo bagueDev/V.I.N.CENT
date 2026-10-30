@@ -1,4 +1,4 @@
-# bagueDev Community Launcher v1 – Das Handbuch
+# bagueDev Community Launcher – Das Handbuch
 
 > Stand: Oktober 2026 · Version 1.5
 
