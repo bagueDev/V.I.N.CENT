@@ -15,6 +15,11 @@
 <img width="937" height="1290" alt="Bildschirmfoto vom 2026-10-22 21-48-39" src="https://github.com/user-attachments/assets/e1d76322-2d50-42e8-80fe-7fea2143072f" />
 
 
+<video src="https://github.com/user-attachments/assets/9b3f6f4a-cf8f-4064-9b74-36155962f075" width="80%" controls></video>
+
+
+
+
 
 ![bagueDev Chat](screenshots/chat.png?raw=true)
 
