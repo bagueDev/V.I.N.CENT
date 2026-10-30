@@ -46,7 +46,8 @@ def _load_config():
 _cfg = _load_config()
 LLAMA_CPP_DIR = _cfg["llama_cpp_dir"]
 LLAMA_SERVER = _cfg["llama_server"]
-DEFAULT_MODELS = _cfg["models_dir"]
+_raw_models = _cfg["models_dir"]
+DEFAULT_MODELS = _raw_models if isinstance(_raw_models, list) else [_raw_models]
 LAUNCHER_PORT = _cfg["launcher_port"]
 SERVER_PORT = _cfg["server_port"]
 ALLOWED_ORIGINS = {
@@ -74,8 +75,16 @@ def _cors_headers(handler):
         handler.send_header("Vary", "Origin")
 
 server_process = None
-# Session-Verzeichnisliste (nur im Speicher)
-models_dirs = [DEFAULT_MODELS]
+# Verzeichnisliste: Basis aus config.json (models_dir als String oder Liste),
+# UI-Zugaben (/api/dirs/add) gelten nur für die laufende Sitzung
+models_dirs = []
+for _d in DEFAULT_MODELS:
+    if Path(_d).exists():
+        models_dirs.append(_d)
+    else:
+        print(f"⚠️  Modellverzeichnis nicht gefunden (übersprungen): {_d}")
+if not models_dirs:
+    models_dirs = [os.path.join(LAUNCHER_DIR, "models")]
 
 # ── Kokoro-TTS (Gradio auf :7865, immer aktiv) ──────────────────
 KOKORO_URL = "http://127.0.0.1:7865"
@@ -367,9 +376,15 @@ HTML_LAUNCHER = r"""<!DOCTYPE html>
       <span style="font-size:0.7rem;color:var(--muted);">GPT-OSS FIX</span>
     </div>
     <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;flex-wrap:wrap;">
-      <input type="checkbox" id="mtp" style="width:16px;height:16px;cursor:pointer;">
-      <span style="font-size:0.7rem;color:var(--muted);">MTP</span>
-      <input class="opt-input" id="specDraftNMax" value="4" type="number" min="1" max="16" style="width:50px;padding:4px 6px;">
+      <div class="opt-label" style="margin:0;">Speculative Decoding</div>
+      <select class="opt-input" id="specType" style="width:130px;padding:4px 6px;">
+        <option value="none">Aus (kein Spec)</option>
+        <option value="draft-mtp">MTP (draft-mtp)</option>
+        <option value="draft">Draft-Modell (draft)</option>
+        <option value="ngram">N-Gram (ngram)</option>
+        <option value="ngram-mod">N-Gram-Mod (ngram-mod)</option>
+      </select>
+      <input class="opt-input" id="specDraftNMax" value="4" type="number" min="1" max="16" style="width:50px;padding:4px 6px;" title="Anzahl Draft-Tokens">
     </div>
     <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;flex-wrap:wrap;">
       <input type="checkbox" id="cpuMoe" checked style="width:16px;height:16px;cursor:pointer;">
@@ -549,6 +564,25 @@ function selectModel(m, el) {
   el.classList.add('selected');
   selectedModel = m;
   document.getElementById('btnStart').disabled = false;
+  // Auto-detect MTP head file: mtp-<modelname>.gguf in same dir
+  const dir = m.dir || '';
+  const base = m.name;
+  const mtpName = 'mtp-' + base;
+  const mtpPath = dir + '/' + mtpName;
+  // Check via a quick fetch to see if file exists is not possible client-side;
+  // instead, try to construct path and let user confirm. We probe via /api/file-exists.
+  fetch('/api/file-exists', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({path: mtpPath})
+  }).then(r => r.json()).then(d => {
+    if (d.exists) {
+      document.getElementById('modelDraft').value = mtpPath;
+      if (document.getElementById('specType').value === 'none') {
+        document.getElementById('specType').value = 'draft-mtp';
+      }
+      updatePreview();
+    }
+  }).catch(() => {});
   updatePreview();
 }
 
@@ -603,13 +637,14 @@ function updatePreview() {
   const ct = document.querySelector('input[name="chatTemplate"]:checked');
   const ctFlag = ct && ct.value === 'qwen' ? ' --chat-template-file qwen_fixed.jinja' : ct && ct.value === 'gemma' ? ' --chat-template-file gemma_fixed.jinja' : ct && ct.value === 'gptoss' ? ' --chat-template-file gptoss_fixed.jinja' : '';
   if (ct && ct.value === 'gptoss') document.getElementById('reasoning').value = 'none';
-  const mtp = document.getElementById('mtp').checked;
+  const specType = document.getElementById('specType').value;
   const specDraftNMax = document.getElementById('specDraftNMax').value;
   const modelDraft = document.getElementById('modelDraft').value.trim();
-  let mtpFlags = '';
-  if (mtp) {
-    mtpFlags = ' --spec-type draft-mtp --spec-draft-n-max ' + specDraftNMax;
-    if (modelDraft) mtpFlags += ' -md ' + modelDraft;
+  let specFlags = '';
+  if (specType !== 'none') {
+    specFlags = ' --spec-type ' + specType + ' --spec-draft-n-max ' + specDraftNMax;
+    if (modelDraft && (specType === 'draft-mtp' || specType === 'draft')) specFlags += ' -md ' + modelDraft;
+    if (specType === 'ngram-mod') specFlags += ' --spec-ngram-mod-n-match 24 --spec-ngram-mod-n-min 48 --spec-ngram-mod-n-max 64';
   }
   const cpuMoe = document.getElementById('cpuMoe').checked;
   const nCpuMoe = document.getElementById('nCpuMoe').value;
@@ -621,7 +656,7 @@ function updatePreview() {
     ' --ctx-size ' + ctx + ' --threads ' + threads + ' --port ' + port +
     ' --cache-type-k ' + cacheTypeK + ' --cache-type-v ' + cacheTypeV +
     ' --batch-size ' + batch + ' --ubatch-size ' + ubatch +
-    ' --n-predict ' + mt + fa + mcp + ctFlag + mtpFlags + moeFlags + getSamplingFlags() + reasoning;
+    ' --n-predict ' + mt + fa + mcp + ctFlag + specFlags + moeFlags + getSamplingFlags() + reasoning;
 }
 
 ['ctxSize','ngl','port','threads','batchSize','ubatchSize','maxTokens','specDraftNMax','nCpuMoe'].forEach(id =>
@@ -630,9 +665,10 @@ function updatePreview() {
 ['cacheTypeK','cacheTypeV'].forEach(id =>
   document.getElementById(id).addEventListener('change', updatePreview)
 );
-['mcpProxy','flashAttn','useJinja','mtp','cpuMoe','reasoning'].forEach(id =>
+['mcpProxy','flashAttn','useJinja','cpuMoe','reasoning'].forEach(id =>
   document.getElementById(id).addEventListener('change', updatePreview)
 );
+document.getElementById('specType').addEventListener('change', updatePreview);
 document.querySelectorAll('input[name="chatTemplate"]').forEach(el =>
   el.addEventListener('change', updatePreview)
 );
@@ -663,7 +699,7 @@ async function startServer() {
     use_jinja: document.getElementById('useJinja').checked,
     chat_template: document.querySelector('input[name="chatTemplate"]:checked')?.value || '',
     reasoning: document.getElementById('reasoning').value,
-    mtp: document.getElementById('mtp').checked,
+    spec_type: document.getElementById('specType').value,
     spec_draft_n_max: parseInt(document.getElementById('specDraftNMax').value),
     model_draft: document.getElementById('modelDraft').value.trim(),
     cpu_moe: document.getElementById('cpuMoe').checked,
@@ -1435,6 +1471,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             models.append({"name": f.name, "path": str(f), "size": size_str, "dir": d})
             self.send_json(models)
 
+        elif path == "/api/file-exists":
+            body = self._read_json()
+            p = body.get("path", "")
+            self.send_json({"exists": os.path.isfile(p)})
+
         elif path == "/api/dirs":
             self.send_json(models_dirs)
 
@@ -1523,13 +1564,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             ubatch_size = body.get("ubatch_size", 64)
             mcp_proxy = body.get("mcp_proxy", False)
             mcp_flag = ["--webui-mcp-proxy"] if mcp_proxy else []
-            mtp = body.get("mtp", False)
-            mtp_flag = []
-            if mtp:
-                mtp_flag += ["--spec-type", "draft-mtp", "--spec-draft-n-max", str(body.get("spec_draft_n_max", 4))]
+            spec_type = body.get("spec_type", "none")
+            spec_flag = []
+            if spec_type and spec_type != "none":
+                spec_flag += ["--spec-type", spec_type, "--spec-draft-n-max", str(body.get("spec_draft_n_max", 4))]
                 model_draft = body.get("model_draft", "")
-                if model_draft:
-                    mtp_flag += ["-md", model_draft]
+                if model_draft and spec_type in ("draft-mtp", "draft"):
+                    spec_flag += ["-md", model_draft]
+                if spec_type in ("ngram-mod", "ngram"):
+                    spec_flag += ["--spec-ngram-mod-n-match", "24", "--spec-ngram-mod-n-min", "48", "--spec-ngram-mod-n-max", "64"]
             moe_flag = []
             if body.get("cpu_moe", False):
                 try:
@@ -1551,7 +1594,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "--batch-size",   str(batch_size),
                 "--ubatch-size",  str(ubatch_size),
                 "--n-predict", str(body.get("max_tokens", 2048)),
-            ] + mcp_flag + mtp_flag + moe_flag
+            ] + mcp_flag + spec_flag + moe_flag
             reasoning = body.get("reasoning", "deepseek")
             chat_template = body.get("chat_template", "")
             if chat_template == "gptoss":
@@ -1646,7 +1689,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 def main():
     print(f"bagueDev Community Launcher  ->  http://localhost:{LAUNCHER_PORT}")
-    print(f"Modelle: {DEFAULT_MODELS}")
+    print(f"Modelle: {', '.join(models_dirs)}")
     print(f"llama-server: {LLAMA_SERVER}")
     print("Ctrl+C zum Beenden\n")
 
