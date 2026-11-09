@@ -1,6 +1,6 @@
 # Changelog – V.I.N.C.E.N.T.
 
-## [1.6] – 2026-11-04 (Router-Modus)
+## [1.7.0] – 2026-11-04 (Router-Modus)
 
 ### Launcher
 - **Router-Modus** (Checkbox im UI): startet `llama-server` mit `--models-dir`, `--models-max` und `--models-preset`, statt ein einzelnes Modell zu laden. Modelle werden bei Bedarf geladen und gewechselt.

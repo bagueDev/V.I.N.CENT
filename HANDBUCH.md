@@ -1,6 +1,6 @@
 # bagueDev Community Launcher – Das Handbuch
 
-> Stand: Oktober 2026 · Version 1.5
+> Stand: November 2026 · Version 1.7.0
 
 ---
 
@@ -420,8 +420,9 @@ Die Einstellungen haben keine Auswirkung auf die Chat-UI – dort gelten die Def
 | v1.4-rc1 | 28.07.2026 | Self-Learning überarbeitet: Threshold 3→6, Whitelist für Kandidaten, human-in-the-loop (`approve_skill`/`reject_skill`), ~178 Zeilen toter Code entfernt (Async-Referenzblock, Deprecated-Wrappers). |
 | v1.4-rc2 | 07.08.2026 | llama.cpp b10295-Reasoning-Fix: Dropdown `On/Off` → `--reasoning-format` (`auto`/`deepseek`/`deepseek-legacy`/`none`, Default `deepseek`). Behebt rohe ` response`/`<tool_call>`/`গ`-Tags im Claude-Code-Output. Verifiziert mit `llama-b10295` + Qwen3.5/Gemma 4. |
 | v1.5 | 04.-29.09.2026 | Security-Härtung: Dateizugriff nur via config.json (`allowed_base`+`allowed_paths`), `~/.ssh`/`/etc/passwd`/`/tmp` blockiert, doppelter Pfad-Check vereint; alle 18 externen Tools markieren Fremd-Content als `[UNTRUSTED WEB]`; Memory-Quarantäne (30 Tage TTL, `review_quarantine`/`purge_memory`); Skill-Vorschläge mit vollem Args + `force=True` für auffällige; Origin-Gate + CORS nur localhost für Launcher/MCP; `run_command` mit shlex.split + Pfad-Prüfung + Logging + Timeout 5-300 s; fehlender `sys`-Import ergänzt. Features: CUDA-Sensoren (RTX 3060: Temp/Power/Fan/VRAM in Chat-Sidebar); GPT-OSS-Jinja-Fix (`gptoss_fixed.jinja`) für Claude-CLI-500er; CPU-MoE-Flag (`--n-cpu-moe`, Default 15); UI-Grid-Overflow-Fix; Chat-TTS via Kokoro (`/api/tts`, satzweise, EN-only). Fixes: Browser-navigate-Bug (`action`->`nav_action`, back/forward ohne URL); Playwright-Chromium nachinstalliert; MTP-Unterstützung im Launcher (`--spec-type draft-mtp`, optionales `-md`-Feld); Spec-Typ-Wahl (draft-mtp/draft/ngram/ngram-mod) + Auto-Erkennung von `mtp-<name>.gguf`; `models_dir` als String oder Liste. |
+| v1.7.0 | 04.11.2026 | Router-Modus (`--models-dir`/`--models-max`/`--models-preset`), automatische `modelfile.ini`, MTP-Erkennung; MCP: `@_recorded`, `delete_file` mit `force`, atomares `write_file`, tokenbasierte `run_command`-Prüfung. Details im `CHANGELOG.md`. |
 
-> Stand: Oktober 2026 · Version 1.5
+> Stand: November 2026 · Version 1.7.0
 
 ---
 
@@ -841,6 +842,7 @@ Die Einstellungen haben keine Auswirkung auf die Chat-UI – dort gelten die Def
 | v1.4-rc1 | 28.07.2026 | Self-Learning überarbeitet: Threshold 3→6, Whitelist für Kandidaten, human-in-the-loop (`approve_skill`/`reject_skill`), ~178 Zeilen toter Code entfernt (Async-Referenzblock, Deprecated-Wrappers). |
 | v1.4-rc2 | 07.08.2026 | llama.cpp b10295-Reasoning-Fix: Dropdown `On/Off` → `--reasoning-format` (`auto`/`deepseek`/`deepseek-legacy`/`none`, Default `deepseek`). Behebt rohe ` response`/`<tool_call>`/`গ`-Tags im Claude-Code-Output. Verifiziert mit `llama-b10295` + Qwen3.5/Gemma 4. |
 | v1.5 | 04.-29.09.2026 | Security-Härtung (Dateizugriff/UNTRUSTED/Quarantäne/Origin-Gate/run_command); Features (CUDA-Sensoren, GPT-OSS-Jinja, CPU-MoE, UI-Grid, Chat-TTS); Fixes (Browser-navigate, Playwright, MTP im Launcher, models_dir als Liste). |
+| v1.7.0 | 04.11.2026 | Router-Modus (`--models-dir`/`--models-max`/`--models-preset`), automatische `modelfile.ini`, MTP-Erkennung; MCP: `@_recorded`, `delete_file` mit `force`, atomares `write_file`, tokenbasierte `run_command`-Prüfung. Details im `CHANGELOG.md`. |
 
 ---
 

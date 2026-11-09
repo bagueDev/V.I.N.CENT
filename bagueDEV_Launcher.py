@@ -45,6 +45,7 @@ def _load_config():
 
 _cfg = _load_config()
 LLAMA_CPP_DIR = _cfg["llama_cpp_dir"]
+VERSION = "1.7.0"
 LLAMA_SERVER = _cfg["llama_server"]
 _raw_models = _cfg["models_dir"]
 DEFAULT_MODELS = _raw_models if isinstance(_raw_models, list) else [_raw_models]
@@ -1962,7 +1963,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 def main():
-    print(f"bagueDev Community Launcher  ->  http://localhost:{LAUNCHER_PORT}")
+    print(f"bagueDev Community Launcher v{VERSION}  ->  http://localhost:{LAUNCHER_PORT}")
     print(f"Modelle: {', '.join(models_dirs)}")
     print(f"llama-server: {LLAMA_SERVER}")
     print("Ctrl+C zum Beenden\n")
