@@ -280,7 +280,7 @@ python3 bagueDEV_Launcher.py
 
 # 7. Modell auswählen und starten
 # → Chat öffnen, Tools aktivieren, fertig.
-# → Vorlesen (EN): 🔊-Haken + Stimme (Liam/Heart/Bella/Emma) → Antwort wird via Kokoro
+# → Vorlesen (EN/DE): 🔊-Haken + Stimme (Liam/Heart/Bella/Emma/Thorsten/Martin/Victoria) → Antwort wird via Kokoro
 #   auf :7865 vertont (CPU-Modus, Gradio muss laufen). WAV per Player downloadbar.
 #
 # VRAM-Recipe (CUDA, RTX 3060 12GB): ngl ist ABSOLUT (Layer), kein Prozent!
@@ -701,7 +701,7 @@ python3 bagueDEV_Launcher.py
 
 # 7. Modell auswählen und starten
 # → Chat öffnen, Tools aktivieren, fertig.
-# → Vorlesen (EN): 🔊-Haken + Stimme (Liam/Heart/Bella/Emma) → Antwort wird via Kokoro
+# → Vorlesen (EN/DE): 🔊-Haken + Stimme (Liam/Heart/Bella/Emma/Thorsten/Martin/Victoria) → Antwort wird via Kokoro
 #   auf :7865 vertont (CPU-Modus, Gradio muss laufen). WAV per Player downloadbar.
 #
 # VRAM-Recipe (CUDA, RTX 3060 12GB): ngl ist ABSOLUT (Layer), kein Prozent!

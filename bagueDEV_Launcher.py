@@ -88,7 +88,8 @@ if not models_dirs:
 
 # ── Kokoro-TTS (Gradio auf :7865, immer aktiv) ──────────────────
 KOKORO_URL = "http://127.0.0.1:7865"
-KOKORO_VOICES = {"am_liam", "af_heart", "af_bella", "bf_emma"}
+KOKORO_VOICES = {"am_liam", "af_heart", "af_bella", "bf_emma",
+                 "DE Thorsten (m)", "DE Martin (m)", "DE Victoria (w)"}
 
 def _gradio_post(path, payload, timeout=90):
     req = urllib.request.Request(
@@ -110,9 +111,10 @@ def kokoro_tts(text, voice="am_liam"):
         raise ValueError("Text zu lang (max. 2000 Zeichen pro Aufruf).")
     if voice not in KOKORO_VOICES:
         raise ValueError("Unbekannte Stimme.")
+    lang = "DE" if voice.startswith("DE ") else "EN"
     try:
         ev = _gradio_post("/gradio_api/call/generate",
-                           {"data": [text, voice, 1.0, False]})
+                           {"data": [text, lang, voice, 1.0, False, "wav", ""]})
         event_id = ev.get("event_id", "")
         if not event_id:
             raise ValueError("Keine Event-ID vom Kokoro-Server.")
@@ -391,9 +393,23 @@ HTML_LAUNCHER = r"""<!DOCTYPE html>
       <span style="font-size:0.7rem;color:var(--muted);">CPU-MoE</span>
       <input class="opt-input" id="nCpuMoe" value="15" type="number" min="0" max="128" style="width:50px;padding:4px 6px;">
     </div>
+    <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;grid-column:1/-1;flex-wrap:wrap;">
+      <input type="checkbox" id="routerMode" style="width:16px;height:16px;cursor:pointer;">
+      <span style="font-size:0.7rem;color:var(--muted);">Router-Modus</span>
+      <input class="opt-input" id="modelsMax" value="1" type="number" min="0" max="10" style="width:50px;padding:4px 6px;" title="Max. gleichzeitig geladene Modelle (0=unbegrenzt)">
+      <span style="font-size:0.7rem;color:var(--muted);">Models Max</span>
+    </div>
+    <div class="opt-group" style="grid-column:1/-1;" id="routerPresetGroup">
+      <div class="opt-label">Models-Preset (INI, optional)</div>
+      <input class="opt-input" id="modelsPreset" placeholder="/pfad/zur/modelfile.ini – leer = auto-generiert">
+    </div>
     <div class="opt-group" style="grid-column:1/-1;">
       <div class="opt-label">Draft Model (optional)</div>
-      <input class="opt-input" id="modelDraft" placeholder="/pfad/zu/mtp-head.gguf – leer lassen für Self-Speculative">
+      <select class="opt-input" id="modelDraftSelect" style="width:100%;padding:4px 6px;margin-bottom:4px;">
+        <option value="">— kein MTP-Head —</option>
+      </select>
+      <input class="opt-input" id="modelDraft" placeholder="oder eigener Pfad..." style="width:100%;">
+      <div style="font-size:0.65rem;color:var(--muted);margin-top:4px;">MTP-Head (mtp-*.gguf) für draft-mtp · kleines LLM für draft · leer für ngram</div>
     </div>
     <div class="opt-group" style="flex-direction:row;align-items:center;gap:8px;padding-top:14px;flex-wrap:wrap;">
       <span style="font-size:0.7rem;color:var(--muted);">Reasoning-Format</span>
@@ -473,6 +489,7 @@ HTML_LAUNCHER = r"""<!DOCTYPE html>
 
 <script>
 let selectedModel = null;
+let models_dirs = [];
 let pollInterval = null;
 
 // ── Verzeichnis-Manager ──────────────────────────────────────
@@ -492,6 +509,7 @@ function renderDirs(dirs) {
 async function loadDirs() {
   const r = await fetch('/api/dirs');
   const dirs = await r.json();
+  models_dirs = dirs;
   renderDirs(dirs);
 }
 
@@ -508,6 +526,7 @@ async function addDir() {
     input.value = '';
     renderDirs(d.dirs);
     loadModels();
+    loadMtpModels();
   } else {
     addLog('Fehler: ' + d.error);
   }
@@ -521,6 +540,7 @@ async function removeDir(path) {
   const d = await r.json();
   renderDirs(d.dirs);
   loadModels();
+  loadMtpModels();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -528,6 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') addDir();
   });
   updateSamplingFields();
+  loadMtpModels();
 });
 
 // ── Modelle ──────────────────────────────────────────────────
@@ -577,6 +598,18 @@ function selectModel(m, el) {
   }).then(r => r.json()).then(d => {
     if (d.exists) {
       document.getElementById('modelDraft').value = mtpPath;
+      const sel = document.getElementById('modelDraftSelect');
+      let found = false;
+      for (const opt of sel.options) {
+        if (opt.value === mtpPath) { sel.value = mtpPath; found = true; break; }
+      }
+      if (!found) {
+        const opt = document.createElement('option');
+        opt.value = mtpPath;
+        opt.textContent = mtpName;
+        sel.appendChild(opt);
+        sel.value = mtpPath;
+      }
       if (document.getElementById('specType').value === 'none') {
         document.getElementById('specType').value = 'draft-mtp';
       }
@@ -621,7 +654,8 @@ function getSamplingFlags() {
 }
 
 function updatePreview() {
-  if (!selectedModel) return;
+  const routerMode = document.getElementById('routerMode').checked;
+  if (!routerMode && !selectedModel) return;
   const ctx = document.getElementById('ctxSize').value;
   const ngl = document.getElementById('ngl').value;
   const port = document.getElementById('port').value;
@@ -643,20 +677,35 @@ function updatePreview() {
   let specFlags = '';
   if (specType !== 'none') {
     specFlags = ' --spec-type ' + specType + ' --spec-draft-n-max ' + specDraftNMax;
-    if (modelDraft && (specType === 'draft-mtp' || specType === 'draft')) specFlags += ' -md ' + modelDraft;
+    if (modelDraft) specFlags += ' -md ' + modelDraft;
     if (specType === 'ngram-mod') specFlags += ' --spec-ngram-mod-n-match 24 --spec-ngram-mod-n-min 48 --spec-ngram-mod-n-max 64';
   }
   const cpuMoe = document.getElementById('cpuMoe').checked;
   const nCpuMoe = document.getElementById('nCpuMoe').value;
   let moeFlags = '';
   if (cpuMoe) moeFlags = ' --n-cpu-moe ' + nCpuMoe;
-  document.getElementById('cmdPreview').innerHTML =
-    '<span>llama-server</span> -m ' + selectedModel.name +
-    ' -ngl ' + ngl +
-    ' --ctx-size ' + ctx + ' --threads ' + threads + ' --port ' + port +
-    ' --cache-type-k ' + cacheTypeK + ' --cache-type-v ' + cacheTypeV +
-    ' --batch-size ' + batch + ' --ubatch-size ' + ubatch +
-    ' --n-predict ' + mt + fa + mcp + ctFlag + specFlags + moeFlags + getSamplingFlags() + reasoning;
+  const modelsMax = document.getElementById('modelsMax').value;
+  const modelsPreset = document.getElementById('modelsPreset').value.trim();
+  const modelsDir = (models_dirs.length ? models_dirs[0] : '');
+  let cmdStr;
+  if (routerMode) {
+    cmdStr = '<span>llama-server</span> --models-dir ' + modelsDir +
+      ' --models-max ' + modelsMax +
+      (modelsPreset ? ' --models-preset ' + modelsPreset : '') +
+      ' -ngl ' + ngl +
+      ' --ctx-size ' + ctx + ' --threads ' + threads + ' --port ' + port +
+      ' --cache-type-k ' + cacheTypeK + ' --cache-type-v ' + cacheTypeV +
+      ' --batch-size ' + batch + ' --ubatch-size ' + ubatch +
+      ' --n-predict ' + mt + fa + mcp + moeFlags + getSamplingFlags() + reasoning;
+  } else {
+    cmdStr = '<span>llama-server</span> -m ' + selectedModel.name +
+      ' -ngl ' + ngl +
+      ' --ctx-size ' + ctx + ' --threads ' + threads + ' --port ' + port +
+      ' --cache-type-k ' + cacheTypeK + ' --cache-type-v ' + cacheTypeV +
+      ' --batch-size ' + batch + ' --ubatch-size ' + ubatch +
+      ' --n-predict ' + mt + fa + mcp + ctFlag + specFlags + moeFlags + getSamplingFlags() + reasoning;
+  }
+  document.getElementById('cmdPreview').innerHTML = cmdStr;
 }
 
 ['ctxSize','ngl','port','threads','batchSize','ubatchSize','maxTokens','specDraftNMax','nCpuMoe'].forEach(id =>
@@ -665,26 +714,87 @@ function updatePreview() {
 ['cacheTypeK','cacheTypeV'].forEach(id =>
   document.getElementById(id).addEventListener('change', updatePreview)
 );
-['mcpProxy','flashAttn','useJinja','cpuMoe','reasoning'].forEach(id =>
-  document.getElementById(id).addEventListener('change', updatePreview)
+['mcpProxy','flashAttn','useJinja','cpuMoe','reasoning','routerMode'].forEach(id =>
+  document.getElementById(id).addEventListener('change', () => {
+    document.getElementById('btnStart').disabled = !(selectedModel || document.getElementById('routerMode').checked);
+    updatePreview();
+  })
 );
 document.getElementById('specType').addEventListener('change', updatePreview);
+document.getElementById('modelsMax').addEventListener('input', updatePreview);
+document.getElementById('modelsPreset').addEventListener('input', updatePreview);
 document.querySelectorAll('input[name="chatTemplate"]').forEach(el =>
   el.addEventListener('change', updatePreview)
 );
-document.getElementById('modelDraft').addEventListener('input', updatePreview);
+function suggestSpecType() {
+  const draft = document.getElementById('modelDraft').value.trim().toLowerCase();
+  if (!draft) return;
+  const sel = document.getElementById('specType');
+  if (draft.includes('mtp')) {
+    if (sel.value !== 'draft-mtp') {
+      // Nur vorschlagen, nicht überschreiben wenn User manuell gewählt hat
+      // Aber wenn noch "none", dann setzen
+      if (sel.value === 'none') sel.value = 'draft-mtp';
+    }
+  } else {
+    if (sel.value === 'none') sel.value = 'draft';
+  }
+  updatePreview();
+}
+function loadMtpModels() {
+  const sel = document.getElementById('modelDraftSelect');
+  fetch('/api/mtp-models').then(r => r.json()).then(models => {
+    sel.innerHTML = '<option value="">— kein MTP-Head —</option>';
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.path;
+      opt.textContent = m.name;
+      sel.appendChild(opt);
+    });
+  }).catch(() => {});
+}
+
+document.getElementById('modelDraftSelect').addEventListener('change', () => {
+  const sel = document.getElementById('modelDraftSelect');
+  if (sel.value) {
+    document.getElementById('modelDraft').value = sel.value;
+  } else {
+    document.getElementById('modelDraft').value = '';
+  }
+  suggestSpecType();
+  updatePreview();
+});
+
+document.getElementById('modelDraft').addEventListener('input', () => {
+  const sel = document.getElementById('modelDraftSelect');
+  // Wenn manuell getippt, Select auf "eigener Pfad" setzen
+  const val = document.getElementById('modelDraft').value.trim();
+  let found = false;
+  for (const opt of sel.options) {
+    if (opt.value === val) { sel.value = val; found = true; break; }
+  }
+  if (!found && val) sel.value = '';
+  suggestSpecType();
+  updatePreview();
+});
 ['samplingTemp','samplingRepeat','samplingTopK','samplingTopP','samplingExtra'].forEach(id =>
   document.getElementById(id).addEventListener('input', updatePreview)
 );
 
 // ── Server ───────────────────────────────────────────────────
 async function startServer() {
-  if (!selectedModel) return;
+  const routerMode = document.getElementById('routerMode').checked;
+  if (!routerMode && !selectedModel) return;
   document.getElementById('btnStart').disabled = true;
   setStatus('starting', 'Starte Server...');
-  addLog('Starte: ' + selectedModel.name);
+  addLog('Starte: ' + (routerMode ? 'Router-Modus' : selectedModel.name));
   const body = {
-    model: selectedModel.path,
+    router_mode: routerMode,
+    model: routerMode ? '' : selectedModel.path,
+    models_dir: '',
+    models_max: routerMode ? parseInt(document.getElementById('modelsMax').value) : 1,
+    models_preset: routerMode ? document.getElementById('modelsPreset').value.trim() : '',
+
     ctx_size: parseInt(document.getElementById('ctxSize').value),
     ngl: parseInt(document.getElementById('ngl').value),
     port: parseInt(document.getElementById('port').value),
@@ -739,7 +849,7 @@ async function stopServer() {
   clearInterval(pollInterval);
   setStatus('stopped', 'Server gestoppt');
   addLog('Server gestoppt.');
-  document.getElementById('btnStart').disabled = !selectedModel;
+  document.getElementById('btnStart').disabled = !(selectedModel || document.getElementById('routerMode').checked);
   document.getElementById('btnStop').disabled = true;
   document.getElementById('btnChat').disabled = true;
   document.getElementById('btnLlama').disabled = true;
@@ -757,7 +867,7 @@ function pollStatus() {
       } else {
         setStatus('stopped', 'Server gestoppt');
         clearInterval(pollInterval);
-        document.getElementById('btnStart').disabled = !selectedModel;
+        document.getElementById('btnStart').disabled = !(selectedModel || document.getElementById('routerMode').checked);
         document.getElementById('btnStop').disabled = true;
         document.getElementById('btnChat').disabled = true;
         document.getElementById('btnLlama').disabled = true;
@@ -956,14 +1066,17 @@ HTML_CHAT = r"""<!DOCTYPE html>
   <textarea id="input" placeholder="Nachricht... (Enter = senden, Shift+Enter = Zeilenumbruch)" rows="1"></textarea>
   <button class="btn-clear" onclick="clearChat()">Leeren</button>
   <button class="btn-clear" onclick="exportChat()">Export MD</button>
-  <label class="btn-clear" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;" title="Antwort vorlesen (Kokoro, Englisch)">
+  <label class="btn-clear" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;" title="Antwort vorlesen (Kokoro, EN/DE)">
     <input type="checkbox" id="ttsSpeak" style="width:14px;height:14px;cursor:pointer;">&#128266;
   </label>
-  <select id="ttsVoice" class="btn-clear" style="cursor:pointer;" title="TTS-Stimme">
-    <option value="am_liam" selected>Liam</option>
-    <option value="af_heart">Heart</option>
-    <option value="af_bella">Bella</option>
-    <option value="bf_emma">Emma</option>
+  <select id="ttsVoice" class="btn-clear" style="cursor:pointer;" title="TTS-Stimme (EN/DE)">
+    <option value="am_liam" selected>Liam (EN)</option>
+    <option value="af_heart">Heart (EN)</option>
+    <option value="af_bella">Bella (EN)</option>
+    <option value="bf_emma">Emma (EN)</option>
+    <option value="DE Thorsten (m)">Thorsten (DE)</option>
+    <option value="DE Martin (m)">Martin (DE)</option>
+    <option value="DE Victoria (w)">Victoria (DE)</option>
   </select>
   <button id="sendBtn" onclick="sendMessage()" disabled>Senden</button>
 </div>
@@ -1425,6 +1538,89 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') hideAbout();
 </html>"""
 
 
+def _generate_modelfile_ini(preset_path, models_dir, body):
+    """Generiert eine modelfile.ini aus aktuellen Einstellungen für Router-Modus."""
+    import glob
+    # Alle models_dirs rekursiv scannen (nicht nur das erste)
+    gguf_files = []
+    seen_names = set()
+    for d in models_dirs:
+        p = Path(d)
+        if p.exists():
+            for f in sorted(p.rglob("*.gguf")):
+                if f.name.startswith("mtp-"):
+                    continue
+                if f.name not in seen_names:
+                    seen_names.add(f.name)
+                    gguf_files.append(f)
+    gguf_files.sort(key=lambda f: f.name)
+    
+    ctx = body.get("ctx_size", 4096)
+    cache_k = body.get("cache_type_k", "q4_0")
+    cache_v = body.get("cache_type_v", "q4_0")
+    batch = body.get("batch_size", 512)
+    ubatch = body.get("ubatch_size", 64)
+    mt = body.get("max_tokens", 2048)
+    temp = body.get("sampling_temp", 0.80)
+    top_p = body.get("sampling_top_p", 0.95)
+    top_k = body.get("sampling_top_k", 40)
+    repeat = body.get("sampling_repeat", 1.00)
+    reasoning = body.get("reasoning", "deepseek")
+    ngl = body.get("ngl", 99)
+    cpu_moe = body.get("n_cpu_moe", 15) if body.get("cpu_moe", False) else None
+    spec_type = body.get("spec_type", "none")
+    spec_n_max = body.get("spec_draft_n_max", 4)
+    model_draft = body.get("model_draft", "")
+    chat_template = body.get("chat_template", "")
+    use_jinja = body.get("use_jinja", True)
+    
+    lines = []
+    # Globale Defaults
+    lines.append("[*]")
+    lines.append(f"ngl = {ngl}")
+    lines.append(f"ctx-size = {ctx}")
+    lines.append(f"cache-type-k = {cache_k}")
+    lines.append(f"cache-type-v = {cache_v}")
+    lines.append(f"batch-size = {batch}")
+    lines.append(f"ubatch-size = {ubatch}")
+    lines.append(f"n-predict = {mt}")
+    lines.append(f"temp = {temp}")
+    lines.append(f"top-p = {top_p}")
+    lines.append(f"top-k = {top_k}")
+    lines.append(f"repeat-penalty = {repeat}")
+    lines.append(f"reasoning-format = {reasoning}")
+    if use_jinja:
+        lines.append("jinja = true")
+    if cpu_moe is not None:
+        lines.append(f"n-cpu-moe = {cpu_moe}")
+    if spec_type and spec_type != "none":
+        lines.append(f"spec-type = {spec_type}")
+        lines.append(f"spec-draft-n-max = {spec_n_max}")
+        if model_draft:
+            lines.append(f"model-draft = {model_draft}")
+        if spec_type in ("ngram-mod", "ngram"):
+            lines.append("spec-ngram-mod-n-match = 24")
+            lines.append("spec-ngram-mod-n-min = 48")
+            lines.append("spec-ngram-mod-n-max = 64")
+    lines.append("")
+    
+    # Per-Modell Sektionen
+    for gguf in gguf_files:
+        name = gguf.stem
+        lines.append(f"[{name}]")
+        lines.append(f"model = {gguf}")
+        if chat_template == "qwen":
+            lines.append(f"chat-template-file = {os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qwen_fixed.jinja')}")
+        elif chat_template == "gemma":
+            lines.append(f"chat-template-file = {os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gemma_fixed.jinja')}")
+        elif chat_template == "gptoss":
+            lines.append(f"chat-template-file = {os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gptoss_fixed.jinja')}")
+        lines.append("")
+    
+    with open(preset_path, 'w', encoding='utf-8') as f:
+        f.write("\n".join(lines))
+    print(f"✅ modelfile.ini generiert: {preset_path} ({len(gguf_files)} Modelle)")
+
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, fmt, *args): pass
 
@@ -1464,6 +1660,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 p = Path(d)
                 if p.exists():
                     for f in sorted(p.glob("*.gguf")):
+                        if f.name.startswith("mtp-"):
+                            continue
                         if f.name not in seen:
                             seen.add(f.name)
                             size_mb = f.stat().st_size / (1024 * 1024)
@@ -1471,12 +1669,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             models.append({"name": f.name, "path": str(f), "size": size_str, "dir": d})
             self.send_json(models)
 
-        elif path == "/api/file-exists":
-            body = self._read_json()
-            p = body.get("path", "")
-            self.send_json({"exists": os.path.isfile(p)})
-
-        elif path == "/api/dirs":
+        elif path == "/api/mtp-models":
+            mtp_models = []
+            seen = set()
+            for d in models_dirs:
+                p = Path(d)
+                if p.exists():
+                    for f in sorted(p.glob("mtp-*.gguf")):
+                        if f.name not in seen:
+                            seen.add(f.name)
+                            mtp_models.append({"name": f.name, "path": str(f)})
+            self.send_json(mtp_models)
             self.send_json(models_dirs)
 
         elif path == "/api/status":
@@ -1493,7 +1696,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_json({
                 "running": running,
                 "port": SERVER_PORT,
-                "model": Path(models_dirs[0]).name if running and models_dirs else "",
+                "model": "Router-Modus" if running and globals().get("_router_mode", False) else (Path(models_dirs[0]).name if running and models_dirs else ""),
                 "log_line": log_line,
             })
 
@@ -1569,10 +1772,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if spec_type and spec_type != "none":
                 spec_flag += ["--spec-type", spec_type, "--spec-draft-n-max", str(body.get("spec_draft_n_max", 4))]
                 model_draft = body.get("model_draft", "")
-                if model_draft and spec_type in ("draft-mtp", "draft"):
+                if model_draft:
                     spec_flag += ["-md", model_draft]
                 if spec_type in ("ngram-mod", "ngram"):
                     spec_flag += ["--spec-ngram-mod-n-match", "24", "--spec-ngram-mod-n-min", "48", "--spec-ngram-mod-n-max", "64"]
+            
+            # Validierungswarnung: MTP mit non-MTP-Draft
+            model_draft = body.get("model_draft", "")
+            if spec_type == "draft-mtp" and model_draft and "mtp" not in model_draft.lower():
+                print(f"⚠️  MTP benötigt einen MTP-Head (mtp-*.gguf), kein reguläres Draft-Modell: {model_draft}")
             moe_flag = []
             if body.get("cpu_moe", False):
                 try:
@@ -1581,20 +1789,62 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     n_cpu_moe = 15
                 moe_flag += ["--n-cpu-moe", str(n_cpu_moe)]
             use_jinja = body.get("use_jinja", True)
-            cmd = [
-                LLAMA_SERVER,
-                "-m",             body["model"],
-                "-ngl",           str(body.get("ngl", 99)),
-                "--ctx-size",     str(body.get("ctx_size", 4096)),
-                "--threads",      str(body.get("threads", 6)),
-                "--port",         str(SERVER_PORT),
-                "--host",         "0.0.0.0",               
-                "--cache-type-k", cache_type_k,
-                "--cache-type-v", cache_type_v,
-                "--batch-size",   str(batch_size),
-                "--ubatch-size",  str(ubatch_size),
-                "--n-predict", str(body.get("max_tokens", 2048)),
-            ] + mcp_flag + spec_flag + moe_flag
+            router_mode = body.get("router_mode", False)
+            globals()["_router_mode"] = router_mode
+            if router_mode:
+                # Bestes Verzeichnis für Router-Modus: das mit den meisten .gguf-Dateien
+                _best_dir = body.get("models_dir") or ""
+                if not _best_dir:
+                    _best_count = 0
+                    for d in models_dirs:
+                        p = Path(d)
+                        if p.exists():
+                            _c = len([f for f in p.rglob("*.gguf") if not f.name.startswith("mtp-")])
+                            if _c > _best_count:
+                                _best_count = _c
+                                _best_dir = d
+                if not _best_dir and models_dirs:
+                    _best_dir = models_dirs[0]
+                models_dir = _best_dir
+                models_max = body.get("models_max", 1)
+                models_preset = body.get("models_preset", "")
+                cmd = [
+                    LLAMA_SERVER,
+                    "--models-dir",   models_dir,
+                    "--models-max",   str(models_max),
+                ]
+                if models_preset:
+                    cmd += ["--models-preset", models_preset]
+                cmd += [
+                    "-ngl",           str(body.get("ngl", 99)),
+                    "--ctx-size",     str(body.get("ctx_size", 4096)),
+                    "--threads",      str(body.get("threads", 6)),
+                    "--port",         str(SERVER_PORT),
+                    "--host",         "0.0.0.0",
+                    "--cache-type-k", cache_type_k,
+                    "--cache-type-v", cache_type_v,
+                    "--batch-size",   str(batch_size),
+                    "--ubatch-size",  str(ubatch_size),
+                    "--n-predict", str(body.get("max_tokens", 2048)),
+                ] + mcp_flag + moe_flag
+                # spec_flag only if no per-model INI (global default)
+                if not models_preset:
+                    cmd += spec_flag
+            else:
+                cmd = [
+                    LLAMA_SERVER,
+                    "-m",             body["model"],
+                    "-ngl",           str(body.get("ngl", 99)),
+                    "--ctx-size",     str(body.get("ctx_size", 4096)),
+                    "--threads",      str(body.get("threads", 6)),
+                    "--port",         str(SERVER_PORT),
+                    "--host",         "0.0.0.0",               
+                    "--cache-type-k", cache_type_k,
+                    "--cache-type-v", cache_type_v,
+                    "--batch-size",   str(batch_size),
+                    "--ubatch-size",  str(ubatch_size),
+                    "--n-predict", str(body.get("max_tokens", 2048)),
+                ] + mcp_flag + spec_flag + moe_flag
             reasoning = body.get("reasoning", "deepseek")
             chat_template = body.get("chat_template", "")
             if chat_template == "gptoss":
@@ -1630,6 +1880,25 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     cmd += ["--temp", str(t), "--repeat-penalty", str(r), "--top-k", str(k), "--top-p", str(p)]
             if flash_attn:
                 cmd += ["--flash-attn", "1"]
+            # Router-Modus: modelfile.ini generieren falls kein Preset angegeben
+            if body.get("router_mode", False) and not body.get("models_preset", ""):
+                # Bestes Verzeichnis für Router-Modus: das mit den meisten .gguf-Dateien
+                _best_dir = body.get("models_dir") or ""
+                if not _best_dir:
+                    _best_count = 0
+                    for d in models_dirs:
+                        p = Path(d)
+                        if p.exists():
+                            _c = len([f for f in p.rglob("*.gguf") if not f.name.startswith("mtp-")])
+                            if _c > _best_count:
+                                _best_count = _c
+                                _best_dir = d
+                if not _best_dir and models_dirs:
+                    _best_dir = models_dirs[0]
+                models_dir = _best_dir
+                preset_path = os.path.join(LAUNCHER_DIR, "modelfile.ini")
+                _generate_modelfile_ini(preset_path, models_dir, body)
+                cmd += ["--models-preset", preset_path]
             try:
                 server_process = subprocess.Popen(
                     cmd, stdout=subprocess.DEVNULL,
@@ -1643,7 +1912,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if server_process and server_process.poll() is None:
                 server_process.terminate()
                 server_process.wait()
+            globals()["_router_mode"] = False
             self.send_json({"ok": True})
+
+        elif self.path == "/api/file-exists":
+            p = body.get("path", "")
+            self.send_json({"exists": os.path.isfile(p)})
 
         elif self.path == "/api/dirs/add":
             path = body.get("path", "").strip()

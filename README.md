@@ -181,6 +181,12 @@ crawl4ai-setup   # optional, for deep web scraping
 
 ---
 
+## Known Open Issues
+
+| | |
+|---|---|
+| **`web_scrape` ohne Timeout** | Ein hängender Crawl kann den MCP Server länger blockieren (Sicherheitsrisiko durch SSRF-Fix ausgeschlossen) |
+| **`tools_count` hardcoded** | Status-Endpoint zeigt `"tools_count": 52`, reale Tool-Anzahl ist 55 – nicht dynamisch berechnet |
 
 ---
 

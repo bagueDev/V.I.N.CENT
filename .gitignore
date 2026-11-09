@@ -1,0 +1,16 @@
+config.json
+venv/
+__pycache__/
+*.pyc
+.chroma/
+logs/
+backups/
+test_daten/
+*.log
+modelfile.ini
+Manuell_modelfile.ini
+*.bak
+vincent_60s_vertical.mp4
+vincent_media/
+todo.html
+start.sh

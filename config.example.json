@@ -1,7 +1,7 @@
 {
   "llama_server": "/pfad/zu/llama-server",
   "llama_cpp_dir": "/pfad/zu/llama.cpp",
-  "models_dir": "/pfad/zu/deinen/Modellen",
+  "models_dir": ["/pfad/zu/deinen/Modellen", "/pfad/zu/weiteren/Modellen"],
   "launcher_port": 9999,
   "server_port": 8080,
   "mcp_port": 8000,

@@ -112,22 +112,32 @@ def is_path_allowed(path: str) -> bool:
             continue
     return False
 
-# llama.cpp JSON-Parser sicherer Grenzwert
-CHUNK_SIZE = 4000
+def _recorded(tool_name: str):
+    """Decorator: zeichnet Tool-Aufrufe automatisch für Self-Learning auf."""
+    def decorator(func):
+        import functools
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                result = func(*args, **kwargs)
+                _record_tool_call(tool_name, kwargs if kwargs else {"args": args}, True, str(result)[:100] if result else "")
+                return result
+            except Exception as e:
+                _record_tool_call(tool_name, kwargs if kwargs else {"args": args}, False, str(e))
+                raise
+        return wrapper
+    return decorator
 
 def _chunked_write(path: str, content: str, mode: str = 'w'):
-    """Schreibt/appendet Content in Chunks, um llama.cpp JSON-Parser-Limit zu umgehen."""
-    if len(content) <= CHUNK_SIZE:
-        with open(path, mode, encoding='utf-8') as f:
+    """Schreibt/appendet Content. 'w'-Modus atomar (Temp + os.replace)."""
+    if mode == 'a':
+        with open(path, 'a', encoding='utf-8') as f:
             f.write(content)
         return
-    first = content[:CHUNK_SIZE]
-    rest = content[CHUNK_SIZE:]
-    with open(path, mode, encoding='utf-8') as f:
-        f.write(first)
-    with open(path, 'a', encoding='utf-8') as f:
-        for i in range(0, len(rest), CHUNK_SIZE):
-            f.write(rest[i:i+CHUNK_SIZE])
+    tmp = path + ".tmp"
+    with open(tmp, 'w', encoding='utf-8') as f:
+        f.write(content)
+    os.replace(tmp, path)
 
 # ========== TOOL DEFINITIONS ==========
 
@@ -155,10 +165,14 @@ def read_file(filepath: str = None, path: str = None, max_chars: int = 10000) ->
             content = f.read()
         
         if len(content) > max_chars:
-            return f"[Datei gekürzt auf {max_chars} Zeichen]\n\n{content[:max_chars]}..."
+            result = f"[Datei gekürzt auf {max_chars} Zeichen]\n\n{content[:max_chars]}..."
+            _record_tool_call("read_file", {"filepath": actual_path, "max_chars": max_chars}, True, result[:100])
+            return result
         
+        _record_tool_call("read_file", {"filepath": actual_path, "max_chars": max_chars}, True, content[:100])
         return content
     except Exception as e:
+        _record_tool_call("read_file", {"filepath": actual_path, "max_chars": max_chars}, False, str(e))
         return f"❌ Fehler beim Lesen: {str(e)}"
 
 @mcp.tool()
@@ -193,11 +207,20 @@ def write_file(filepath: str = None, path: str = None, content: str = "", base64
         if len(content) > 16000:
             return f"❌ Content zu groß ({len(content)} Zeichen). Max 16000 Zeichen.\nAufteilen:\n1. write_file(filepath=\"...\", content=\"# section1\\n# section2\\n...\")\n2. append_to_file(filepath=\"...\", content=\"# section1\\n...\")\n3. append_to_file(filepath=\"...\", content=\"# section2\\n...\")"
         
+        # Backup bei vorhandener Datei
+        if os.path.exists(actual_path):
+            try:
+                shutil.copy2(actual_path, actual_path + ".bak")
+            except Exception:
+                pass
+        
         os.makedirs(os.path.dirname(actual_path) or '.', exist_ok=True)
         _chunked_write(actual_path, content, 'w')
         
+        _record_tool_call("write_file", {"filepath": actual_path, "content_length": len(content)}, True, f"Datei geschrieben: {actual_path}")
         return f"✅ Datei geschrieben: {actual_path} ({len(content)} Zeichen)"
     except Exception as e:
+        _record_tool_call("write_file", {"filepath": actual_path}, False, str(e))
         return f"❌ Fehler beim Schreiben: {str(e)}"
 
 @mcp.tool()
@@ -235,8 +258,12 @@ def append_to_file(filepath: str = None, path: str = None, content: str = "", ba
             return f"❌ Content zu groß ({len(content)} Zeichen). Max 16000 Zeichen.\nAufteilen:\n1. write_file(filepath=\"...\", content=\"# section1\\n# section2\\n...\")\n2. append_to_file(filepath=\"...\", content=\"# section1\\n...\")\n3. append_to_file(filepath=\"...\", content=\"# section2\\n...\")"
         
         _chunked_write(actual_path, content, 'a')
+        _record_tool_call("append_to_file", {"filepath": actual_path, "content_length": len(content)}, True, f"Content angehängt an: {actual_path}")
         return f"✅ Content angehängt an: {actual_path} ({len(content)} Zeichen)"
+    except FileNotFoundError:
+        return f"❌ Datei existiert nicht: {actual_path}. Nutze write_file um sie zu erstellen."
     except Exception as e:
+        _record_tool_call("append_to_file", {"filepath": actual_path}, False, str(e))
         return f"❌ Fehler beim Anhängen: {str(e)}"
 
 @mcp.tool()
@@ -263,8 +290,11 @@ def list_directory(filepath: str = None, path: str = ".", dir_only: bool = False
                 size = os.path.getsize(full_path)
                 items.append(f"📄 {item} ({size} bytes)")
         
-        return "\n".join(items) if items else "Leer"
+        result = "\n".join(items) if items else "Leer"
+        _record_tool_call("list_directory", {"path": actual_path, "dir_only": dir_only}, True, result[:100])
+        return result
     except Exception as e:
+        _record_tool_call("list_directory", {"path": actual_path, "dir_only": dir_only}, False, str(e))
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
@@ -296,10 +326,14 @@ def search_files(filepath: str = None, path: str = None, pattern: str = "", file
                 continue
         
         if not results:
+            _record_tool_call("search_files", {"path": actual_path, "pattern": pattern, "file_type": file_type}, True, "Keine Treffer")
             return f"Keine Treffer für '{pattern}' gefunden."
         
-        return "\n".join(results[:50])
+        result = "\n".join(results[:50])
+        _record_tool_call("search_files", {"path": actual_path, "pattern": pattern, "file_type": file_type}, True, result[:100])
+        return result
     except Exception as e:
+        _record_tool_call("search_files", {"path": actual_path, "pattern": pattern, "file_type": file_type}, False, str(e))
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
@@ -330,16 +364,21 @@ def grep(pattern: str = "", filepath: str = None, path: str = ".", file_glob: st
                 continue
         
         if not matches:
+            _record_tool_call("grep", {"path": actual_path, "pattern": pattern, "file_glob": file_glob}, True, "Keine Treffer")
             return f"❌ Keine Treffer für '{pattern}' in {actual_path}/{file_glob}"
         
         result = "\n".join(matches[:100])
         if len(matches) > 100:
             result += f"\n... und {len(matches) - 100} weitere Treffer"
-        return f"🔍 {len(matches)} Treffer für '{pattern}':\n{result}"
+        final = f"🔍 {len(matches)} Treffer für '{pattern}':\n{result}"
+        _record_tool_call("grep", {"path": actual_path, "pattern": pattern, "file_glob": file_glob}, True, final[:100])
+        return final
     except Exception as e:
+        _record_tool_call("grep", {"path": actual_path, "pattern": pattern, "file_glob": file_glob}, False, str(e))
         return f"❌ Fehler bei grep: {str(e)}"
 
 @mcp.tool()
+@_recorded("get_file_info")
 def get_file_info(filepath: str = None, path: str = None) -> str:
     """Gibt Informationen über eine Datei zurück."""
     actual_path = resolve_path(filepath or path)
@@ -380,12 +419,14 @@ def create_directory(filepath: str = None, path: str = None) -> str:
     
     try:
         os.makedirs(actual_path, exist_ok=True)
+        _record_tool_call("create_directory", {"path": actual_path}, True, f"Verzeichnis erstellt: {actual_path}")
         return f"✅ Verzeichnis erstellt: {actual_path}"
     except Exception as e:
+        _record_tool_call("create_directory", {"path": actual_path}, False, str(e))
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
-def delete_file(filepath: str = None, path: str = None) -> str:
+def delete_file(filepath: str = None, path: str = None, force: bool = False) -> str:
     """Löscht eine Datei oder ein leeres Verzeichnis."""
     actual_path = resolve_path(filepath or path)
     if not actual_path:
@@ -398,13 +439,32 @@ def delete_file(filepath: str = None, path: str = None) -> str:
         if not os.path.exists(actual_path):
             return f"❌ Nicht gefunden: {actual_path}"
         
+        # Größenprüfung für Dateien und Verzeichnisse
+        if not force:
+            if os.path.isfile(actual_path):
+                size_mb = os.path.getsize(actual_path) / (1024 * 1024)
+                if size_mb > 1:
+                    _record_tool_call("delete_file", {"filepath": actual_path, "size_mb": round(size_mb, 2)}, False, "Bestätigung erforderlich")
+                    return f"⚠️ Datei ist {size_mb:.1f} MB groß. Wirklich löschen? Erneut aufrufen mit force=True."
+            elif os.path.isdir(actual_path):
+                total_size = 0
+                for dirpath, dirnames, filenames in os.walk(actual_path):
+                    for f in filenames:
+                        total_size += os.path.getsize(os.path.join(dirpath, f))
+                size_mb = total_size / (1024 * 1024)
+                if size_mb > 1:
+                    _record_tool_call("delete_file", {"filepath": actual_path, "size_mb": round(size_mb, 2)}, False, "Bestätigung erforderlich")
+                    return f"⚠️ Verzeichnis enthält {size_mb:.1f} MB Daten. Wirklich löschen? Erneut aufrufen mit force=True."
+        
         if os.path.isdir(actual_path):
             os.rmdir(actual_path)
         else:
             os.remove(actual_path)
         
+        _record_tool_call("delete_file", {"filepath": actual_path, "force": force}, True, f"Gelöscht: {actual_path}")
         return f"✅ Gelöscht: {actual_path}"
     except Exception as e:
+        _record_tool_call("delete_file", {"filepath": actual_path}, False, str(e))
         return f"❌ Fehler: {str(e)}"
 
 import ipaddress
@@ -516,7 +576,9 @@ def web_scrape(url: str) -> str:
         with ThreadPoolExecutor() as executor:
             loop = asyncio.new_event_loop()
             raw = executor.submit(loop.run_until_complete, scrape()).result()
-            return _wrap_untrusted("web_scrape:" + url, raw)
+            result = _wrap_untrusted("web_scrape:" + url, raw)
+            _record_tool_call("web_scrape", {"url": url}, True, result[:100])
+            return result
     except ImportError:
         return "❌ crawl4ai nicht installiert. Bitte: pip install crawl4ai"
     except Exception as e:
@@ -612,12 +674,16 @@ def _get_browser_subprocess():
 def _send_browser_cmd(action: str, **kwargs) -> dict:
     """Send command to browser subprocess with error handling."""
     import json
+    import select
     try:
         proc = _get_browser_subprocess()
         with _browser_lock:
             cmd = json.dumps({"action": action, "args": kwargs}) + "\n"
             proc.stdin.write(cmd)
             proc.stdin.flush()
+            ready, _, _ = select.select([proc.stdout], [], [], 10)
+            if not ready:
+                return {"status": "error", "message": "Browser-Subprocess Timeout (10s)"}
             response_line = proc.stdout.readline()
             return json.loads(response_line)
     except Exception as e:
@@ -757,6 +823,7 @@ def browser_search_products(query: str, limit: int = 10) -> str:
         return f"❌ Fehler: {str(e)[:80]}"
 
 @mcp.tool()
+@_recorded("structured_snapshot")
 def structured_snapshot(url: str = "") -> str:
     """Gets a structured list of all interactive elements."""
     try:
@@ -765,6 +832,7 @@ def structured_snapshot(url: str = "") -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("browser_click")
 def browser_click(selector: str) -> str:
     """Clicks an element by CSS selector."""
     try:
@@ -773,6 +841,7 @@ def browser_click(selector: str) -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("browser_type")
 def browser_type(selector: str, text: str) -> str:
     """Types text into field."""
     try:
@@ -782,6 +851,7 @@ def browser_type(selector: str, text: str) -> str:
 
 
 @mcp.tool()
+@_recorded("browser_navigate")
 def browser_navigate(url: str, action: str = "goto") -> str:
     """Navigate back, forward, or to URL."""
     try:
@@ -790,6 +860,7 @@ def browser_navigate(url: str, action: str = "goto") -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("auto_click")
 def auto_click(text: str, url: str = "https://example.com") -> str:
     """Clicks by text with self-healing fallback."""
     try:
@@ -799,6 +870,7 @@ def auto_click(text: str, url: str = "https://example.com") -> str:
 
 
 @mcp.tool()
+@_recorded("browser_screenshot")
 def browser_screenshot(filepath: str = None, path: str = "screenshot.png") -> str:
     """Takes a screenshot and saves it to a file.
     
@@ -814,6 +886,7 @@ def browser_screenshot(filepath: str = None, path: str = "screenshot.png") -> st
 
 
 @mcp.tool()
+@_recorded("browser_new_tab")
 def browser_new_tab(url: str = "") -> str:
     """Öffnet einen neuen Tab (optional mit URL)."""
     try:
@@ -825,6 +898,7 @@ def browser_new_tab(url: str = "") -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("browser_switch_tab")
 def browser_switch_tab(index: int) -> str:
     """Wechselt zu Tab mit Index (0-basiert)."""
     try:
@@ -838,6 +912,7 @@ def browser_switch_tab(index: int) -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("browser_close_tab")
 def browser_close_tab(index: int = None) -> str:
     """Schließt Tab (aktueller wenn None)."""
     try:
@@ -849,6 +924,7 @@ def browser_close_tab(index: int = None) -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("browser_list_tabs")
 def browser_list_tabs() -> str:
     """Listet alle offenen Tabs auf."""
     try:
@@ -868,6 +944,7 @@ def browser_list_tabs() -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("browser_wait_for")
 def browser_wait_for(selector: str, timeout: int = 5000) -> str:
     """Wartet auf Element (CSS-Selektor)."""
     try:
@@ -879,6 +956,7 @@ def browser_wait_for(selector: str, timeout: int = 5000) -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("browser_wait_for_load")
 def browser_wait_for_load(timeout: int = 30000) -> str:
     """Wartet bis Seite geladen ist."""
     try:
@@ -1222,6 +1300,7 @@ def _create_learned_skill(tool_name: str, base_args: dict, usage_data: dict) -> 
         return f"❌ Skill erstellen fehlgeschlagen: {e}"
 
 @mcp.tool()
+@_recorded("learn_skill")
 def learn_skill(tool_name: str, skill_keyword: str, description: str = "") -> str:
     """Trainiere V.I.N.C.E.N.T. manuell auf einen Tool mit Argumenten (z.B. 'learn_skill browser_open amazon.de amazon_suche')."""
     try:
@@ -1260,6 +1339,7 @@ def learn_skill(tool_name: str, skill_keyword: str, description: str = "") -> st
         return f"❌ Lern-Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("review_learned_patterns")
 def review_learned_patterns() -> str:
     """Zeigt alle erkannten Skill-Vorschläge (Kandidaten), die noch auf Bestätigung warten.
     Läuft komplett passiv im Hintergrund - hier rufst du die Ergebnisse aktiv ab."""
@@ -1292,6 +1372,7 @@ def review_learned_patterns() -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("approve_skill")
 def approve_skill(pattern_id: str, force: bool = False) -> str:
     """Bestätigt einen Skill-Vorschlag aus review_learned_patterns() und macht ihn zu einem echten Skill.
 
@@ -1325,6 +1406,7 @@ def approve_skill(pattern_id: str, force: bool = False) -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("reject_skill")
 def reject_skill(pattern_id: str) -> str:
     """Verwirft einen Skill-Vorschlag aus review_learned_patterns(), ohne einen Skill anzulegen."""
     suggestions = _init_chroma_suggestions()
@@ -1338,6 +1420,7 @@ def reject_skill(pattern_id: str) -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("show_tool_usage")
 def show_tool_usage() -> str:
     """Zeige Tool-Nutzungsstatistiken."""
     collection = _init_chroma_usage()
@@ -1367,6 +1450,7 @@ def show_tool_usage() -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("review_quarantine")
 def review_quarantine(show_expired: bool = False) -> str:
     """Listet quarantänierte Memory-Einträge (30 Tage TTL, lazy Ablauf).
 
@@ -1562,11 +1646,10 @@ def _detect_project_type(root_path: str) -> dict:
     
     return result
 
-def _is_path_allowed(path: str) -> bool:
-    """Prüft ob ein Pfad erlaubt ist (Whitelist). Delegiert an is_path_allowed."""
-    return is_path_allowed(path)
+# is_path_allowed (Zeile 97) ist die einzige Implementierung – kein Wrapper nötig
 
 @mcp.tool()
+@_recorded("list_skills")
 def list_skills() -> str:
     """Listet alle selbstgelernten Skills auf."""
     try:
@@ -1621,6 +1704,7 @@ def list_skills() -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("use_skill")
 def use_skill(keyword: str) -> str:
     """Führt einen Skill aus (anhand von Keyword)."""
     try:
@@ -1687,6 +1771,7 @@ def use_skill(keyword: str) -> str:
         return f"❌ Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("delete_skill")
 def delete_skill(skill_id: str) -> str:
     """Löscht einen bereits gelernten Skill (ID aus list_skills()) unwiderruflich.
     
@@ -1923,7 +2008,7 @@ def analyze_project(root_path: str = None, filepath: str = None, path: str = Non
         from os import walk
         from os.path import join, basename, relpath, isdir
         
-        if not _is_path_allowed(actual_path):
+        if not is_path_allowed(actual_path):
             return "❌ Zugriff verweigert: Pfad außerhalb der Whitelist."
         if not isdir(actual_path):
             return "❌ Angegebener Pfad ist kein Ordner."
@@ -2007,7 +2092,7 @@ def add_project_to_rag(root_path: str = None, filepath: str = None, path: str = 
             except:
                 pass
         
-        if not _is_path_allowed(actual_path):
+        if not is_path_allowed(actual_path):
             return "❌ Zugriff verweigert."
         if not isdir(actual_path):
             return "❌ Angegebener Pfad ist kein Ordner."
@@ -2100,8 +2185,9 @@ def patch_file(file_path: str = None, filepath: str = None, path: str = None, st
         
         new_lines = lines[:idx_start] + patch_lines + lines[idx_end:]
         
-        # Backup
-        backup_path = actual_path + ".bak"
+        # Backup mit Timestamp
+        import datetime
+        backup_path = actual_path + ".bak_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         shutil.copy2(actual_path, backup_path)
         
         with open(actual_path, 'w', encoding='utf-8') as f:
@@ -2249,6 +2335,7 @@ def delete_memory(memory_id: str) -> str:
         return f"❌ Fehler beim Löschen: {str(e)}"
 
 @mcp.tool()
+@_recorded("vincent_status")
 def vincent_status() -> str:
     """Gibt den Status von V.I.N.C.E.N.T. zurück."""
     return json.dumps({
@@ -2859,6 +2946,7 @@ def tavily_deep_search(query: str, max_results: int = 20) -> str:
         return f"❌ Tavily Deep Search Fehler: {str(e)}"
 
 @mcp.tool()
+@_recorded("create_diagram")
 def create_diagram(
     diagram_type: str,
     description: str,
@@ -3177,15 +3265,21 @@ def run_command(
     cmd_str = command.strip()
     if not cmd_str:
         return "❌ Kein Kommando angegeben"
-    allowed = any(cmd_str.startswith(prefix) for prefix in _SAFE_COMMANDS)
-    if not allowed:
-        return f"❌ Kommando nicht erlaubt. Erlaubte Prefixe: {', '.join(_SAFE_COMMANDS)}"
+    # Prefix-Matching auf Basis der ersten Tokens (nicht String-Prefix, um Bypass zu verhindern)
     try:
-        parts = shlex.split(cmd_str)
+        _parts_check = shlex.split(cmd_str)
     except ValueError:
         return "❌ Fehler: Anführungszeichen im Kommando sind unbalanced"
-    if not parts:
+    if not _parts_check:
         return "❌ Kein Kommando angegeben"
+    _allowed = False
+    for prefix in _SAFE_COMMANDS:
+        _prefix_parts = prefix.split()
+        if _parts_check[:len(_prefix_parts)] == _prefix_parts:
+            _allowed = True
+            break
+    if not _allowed:
+        return f"❌ Kommando nicht erlaubt. Erlaubte Prefixe: {', '.join(_SAFE_COMMANDS)}"
     try:
         timeout = max(5, min(int(timeout), 300))
     except:
