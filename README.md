@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.png" alt="V.I.N.CENT by bagueDev" width="160">
+</p>
+
 # bagueDev Community Launcher
 
 **bagueDev Community Launcher** · **V.I.N.C.E.N.T. MCP Server**
