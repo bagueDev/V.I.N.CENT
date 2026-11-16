@@ -1,5 +1,19 @@
 # Changelog – V.I.N.C.E.N.T.
 
+## [1.8.0] – 2026-11-16 (Ordner-Browser & Icon)
+
+### Launcher
+- **Ordner-Browser** für Modell-Verzeichnisse: Button „Durchsuchen“ öffnet ein Overlay mit Schnellzugriffen (Home, `/media`, `/mnt`, `/`), Navigation durch Ordner und GGUF-Anzahl pro Ordner; „Diesen Ordner übernehmen“ fügt den Pfad hinzu (gilt wie bisher nur für die laufende Sitzung).
+- Neuer Endpoint `GET /api/browse`: liefert nur Ordner und GGUF-Zähler (keine Dateiinhalte), blendet versteckte Ordner aus, localhost-only mit Origin-Check.
+- **Favicon** im Launcher und im Chat (Data-URI, keine zusätzliche Datei nötig).
+- Die Verzeichnisliste wird ohne `innerHTML` aufgebaut (Sonderzeichen in Ordnernamen können das HTML nicht mehr brechen).
+- `VERSION`-Konstante im Launcher, Anzeige in der Startmeldung.
+
+### Doku
+- **App-Icon** „V.I.N.CENT by bagueDev“ (`assets/icon.png`, `assets/icon.ico`), in der README eingebunden.
+
+---
+
 ## [1.7.0] – 2026-11-04 (Router-Modus)
 
 ### Launcher
