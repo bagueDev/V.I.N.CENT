@@ -213,6 +213,33 @@ HTML_LAUNCHER = r"""<!DOCTYPE html>
            padding:7px 14px;font-family:var(--sans);font-weight:700;font-size:0.75rem;
            cursor:pointer;white-space:nowrap;height:auto;letter-spacing:.03em;}
   .btn-add:hover{opacity:.85;}
+  .btn-browse{background:transparent;color:var(--text);border:1px solid var(--border);border-radius:4px;
+              padding:7px 12px;font-family:var(--sans);font-weight:600;font-size:0.75rem;
+              cursor:pointer;white-space:nowrap;height:auto;}
+  .btn-browse:hover{border-color:var(--accent);color:var(--accent);}
+  .browse-overlay{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.65);
+                  align-items:center;justify-content:center;padding:16px;}
+  .browse-overlay.open{display:flex;}
+  .browse-modal{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+                width:min(560px,100%);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;}
+  .browse-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+  .browse-title{font-size:0.8rem;font-weight:700;flex:1;}
+  .browse-close{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:0 4px;height:auto;min-width:0;}
+  .browse-close:hover{color:var(--accent);}
+  .browse-roots{display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px 0;}
+  .browse-root{background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--muted);
+               font-size:0.68rem;padding:3px 8px;cursor:pointer;height:auto;}
+  .browse-root:hover{border-color:var(--accent);color:var(--accent);}
+  .browse-path{padding:8px 14px 2px;font-family:var(--mono);font-size:0.72rem;color:var(--text);word-break:break-all;}
+  .browse-info{padding:0 14px 8px;font-size:0.65rem;color:var(--muted);}
+  .browse-list{overflow-y:auto;border-top:1px solid var(--border);flex:1;min-height:120px;}
+  .browse-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:transparent;
+               border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:0.75rem;
+               padding:8px 14px;cursor:pointer;height:auto;border-radius:0;}
+  .browse-item:hover{background:var(--bg);}
+  .browse-item .cnt{margin-left:auto;font-size:0.65rem;color:var(--green);}
+  .browse-empty{padding:14px;font-size:0.72rem;color:var(--muted);}
+  .browse-foot{padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
 
   .model-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;
               scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
@@ -300,7 +327,26 @@ HTML_LAUNCHER = r"""<!DOCTYPE html>
   <div class="dir-list" id="dirList"></div>
   <div class="dir-add-row">
     <input class="dir-input" id="dirInput" placeholder="/Pfad/zu/gguf/Ordner" />
+    <button class="btn-browse" onclick="openBrowse(document.getElementById('dirInput').value.trim())">&#128193; Durchsuchen</button>
     <button class="btn-add" onclick="addDir()">+ Hinzufügen</button>
+  </div>
+</div>
+
+<!-- ORDNER-BROWSER (Overlay) -->
+<div class="browse-overlay" id="browseOverlay" onclick="if(event.target===this)closeBrowse()">
+  <div class="browse-modal">
+    <div class="browse-head">
+      <div class="browse-title">Ordner auswählen</div>
+      <button class="browse-close" onclick="closeBrowse()" title="Schließen">&#10005;</button>
+    </div>
+    <div class="browse-roots" id="browseRoots"></div>
+    <div class="browse-path" id="browsePath"></div>
+    <div class="browse-info" id="browseInfo"></div>
+    <div class="browse-list" id="browseList"></div>
+    <div class="browse-foot">
+      <button class="btn-browse" onclick="closeBrowse()">Abbrechen</button>
+      <button class="btn-add" onclick="selectBrowse()">Diesen Ordner übernehmen</button>
+    </div>
   </div>
 </div>
 
@@ -501,9 +547,16 @@ function renderDirs(dirs) {
   dirs.forEach(d => {
     const el = document.createElement('div');
     el.className = 'dir-item';
-    el.innerHTML =
-      '<div class="dir-path">' + d + '</div>' +
-      '<button class="dir-remove" onclick="removeDir(\'' + d.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" title="Entfernen">&#10005;</button>';
+    const pathEl = document.createElement('div');
+    pathEl.className = 'dir-path';
+    pathEl.textContent = d;
+    const rm = document.createElement('button');
+    rm.className = 'dir-remove';
+    rm.title = 'Entfernen';
+    rm.innerHTML = '&#10005;';
+    rm.addEventListener('click', () => removeDir(d));
+    el.appendChild(pathEl);
+    el.appendChild(rm);
     list.appendChild(el);
   });
 }
@@ -544,6 +597,64 @@ async function removeDir(path) {
   loadModels();
   loadMtpModels();
 }
+
+// ── Ordner-Browser (Overlay) ─────────────────────────────────
+let browsePath = '';
+
+function openBrowse(startPath) {
+  document.getElementById('browseOverlay').classList.add('open');
+  loadBrowse(startPath || '');
+}
+
+function closeBrowse() {
+  document.getElementById('browseOverlay').classList.remove('open');
+}
+
+function selectBrowse() {
+  if (!browsePath) return;
+  document.getElementById('dirInput').value = browsePath;
+  closeBrowse();
+  addDir();
+}
+
+function _browseBtn(cls, label, path, count) {
+  const b = document.createElement('button');
+  b.className = cls;
+  b.textContent = label;
+  if (count) {
+    const c = document.createElement('span');
+    c.className = 'cnt';
+    c.textContent = count + ' GGUF';
+    b.appendChild(c);
+  }
+  b.addEventListener('click', () => loadBrowse(path));
+  return b;
+}
+
+async function loadBrowse(path) {
+  const list = document.getElementById('browseList');
+  list.innerHTML = '<div class="browse-empty">Lade...</div>';
+  try {
+    const r = await fetch('/api/browse?path=' + encodeURIComponent(path));
+    const d = await r.json();
+    if (!d.ok) { list.innerHTML = ''; const e = document.createElement('div'); e.className = 'browse-empty'; e.textContent = d.error || 'Fehler'; list.appendChild(e); return; }
+    browsePath = d.path;
+    document.getElementById('browsePath').textContent = d.path;
+    document.getElementById('browseInfo').textContent = d.gguf_here + ' GGUF-Datei(en) in diesem Ordner';
+    const roots = document.getElementById('browseRoots');
+    roots.innerHTML = '';
+    d.roots.forEach(rp => roots.appendChild(_browseBtn('browse-root', rp, rp, 0)));
+    list.innerHTML = '';
+    if (d.parent) list.appendChild(_browseBtn('browse-item', '\u2B06  .. (nach oben)', d.parent, 0));
+    d.dirs.forEach(x => list.appendChild(_browseBtn('browse-item', '\uD83D\uDCC1  ' + x.name, d.path.replace(/\/$/, '') + '/' + x.name, x.gguf)));
+    if (!d.dirs.length) { const e = document.createElement('div'); e.className = 'browse-empty'; e.textContent = 'Keine Unterordner'; list.appendChild(e); }
+  } catch (err) {
+    list.innerHTML = '';
+    const e = document.createElement('div'); e.className = 'browse-empty'; e.textContent = 'Verbindungsfehler: ' + err; list.appendChild(e);
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBrowse(); });
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('dirInput').addEventListener('keydown', e => {
@@ -1637,6 +1748,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        global models_dirs
         path = self.path.split("?")[0]
 
         if path == "/":
@@ -1655,8 +1767,59 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
 
+        elif path == "/api/browse":
+            if not _is_origin_allowed(self):
+                self.send_json({"ok": False, "error": "Fremde Origin blockiert"}, 403)
+                return
+            from urllib.parse import parse_qs, urlparse
+            req = parse_qs(urlparse(self.path).query).get("path", [""])[0].strip()
+            home = os.path.expanduser("~")
+            start = req or (models_dirs[0] if models_dirs else "") or home
+            try:
+                p = Path(start).expanduser().resolve()
+                while not p.is_dir() and p != p.parent:
+                    p = p.parent
+            except (OSError, RuntimeError):
+                self.send_json({"ok": False, "error": "Ungültiger Pfad: " + start})
+                return
+
+            def _count_gguf(d):
+                try:
+                    with os.scandir(d) as it:
+                        return sum(1 for e in it if e.name.lower().endswith(".gguf") and e.is_file())
+                except OSError:
+                    return 0
+
+            dirs = []
+            try:
+                with os.scandir(p) as it:
+                    for e in it:
+                        if e.name.startswith("."):
+                            continue
+                        try:
+                            if e.is_dir():
+                                dirs.append(e.name)
+                        except OSError:
+                            continue
+            except PermissionError:
+                self.send_json({"ok": False, "error": "Keine Berechtigung für: " + str(p)})
+                return
+            except OSError as e:
+                self.send_json({"ok": False, "error": "Ordner nicht lesbar: " + str(e)})
+                return
+            dirs.sort(key=str.lower)
+            dirs = [{"name": n, "gguf": _count_gguf(p / n)} for n in dirs[:500]]
+            roots = [r for r in (home, "/media", "/mnt", "/") if os.path.isdir(r)]
+            self.send_json({
+                "ok": True,
+                "path": str(p),
+                "parent": str(p.parent) if p.parent != p else None,
+                "dirs": dirs,
+                "gguf_here": _count_gguf(p),
+                "roots": roots,
+            })
+
         elif path == "/api/models":
-            global models_dirs
             models = []
             seen = set()
             for d in models_dirs:
