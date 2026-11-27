@@ -1,5 +1,15 @@
 # Changelog – V.I.N.C.E.N.T.
 
+## [1.8.2] – 2026-11-27 (Sandbox-Härtung)
+
+### Sicherheit
+- **`run_python`:** Ein `seccomp`-Filter verhindert, dass Code in der Sandbox eigene Namespaces anlegt (`unshare`, `setns`, `clone`). Damit lässt sich dort kein beschreibbares `tmpfs` mehr einhängen (Einschränkung aus 1.8.1). Ohne Filter wird kein Code ausgeführt.
+- **Ausgabe** wird auch dann gekürzt, wenn der Code direkt in die Standardausgabe schreibt.
+- **Voraussetzung:** Den Filter gibt es nur für x86_64 und ARM64, auf anderen Prozessoren wird kein Code ausgeführt. Getestet nur auf x86_64.
+- **Weiter offen:** Der gesamte Speicherverbrauch der Sandbox ist nicht begrenzt (das Limit gilt je Prozess). Eine Sandbox ist keine virtuelle Maschine und schützt nicht gegen Lücken im Linux-Kernel.
+
+---
+
 ## [1.8.1] – 2026-11-27 (MCP-Server)
 
 ### Fixes

@@ -1,10 +1,9 @@
 """Gemeinsame Schutzschicht für run_python (V.I.N.C.E.N.T. MCP-Server).
 
-Die Grenze ist die Sandbox (bubblewrap, nur Linux): Der Code sieht vom Rechner nur das System
-und die Python-Pakete (nur lesbar), kann auf dem Rechner nichts schreiben, hat kein Netz und
-sieht dessen Umgebungsvariablen nicht. Ohne bubblewrap wird nichts ausgeführt.
-Nicht begrenzt ist der gesamte Speicherverbrauch: Das Limit gilt je Prozess, und über einen
-eigenen User-Namespace lässt sich in der Sandbox ein beschreibbares tmpfs einhängen.
+Die Grenze ist die Sandbox (bubblewrap und ein seccomp-Filter, nur Linux): Der Code sieht vom
+Rechner nur das System und die Python-Pakete (nur lesbar), kann keine Dateien anlegen oder ändern,
+hat kein Netz und keine Umgebungsvariablen. Ohne diese Sandbox wird nichts ausgeführt.
+Nicht begrenzt ist der gesamte Speicherverbrauch, das Speicherlimit gilt je Prozess.
 
 check_python_code() und make_exec_globals() sind KEIN Schutz, den man nicht umgehen könnte
 (z. B. führen Bibliotheken selbst Dateizugriffe aus). Sie geben dem Modell nur früh den Hinweis
@@ -123,8 +122,9 @@ def limit_resources(mem_mb: int = 1024, cpu_s: int = 10) -> None:
 
 TIMEOUT_S = 10
 OUTPUT_LIMIT = 100_000          # Zeichen, die höchstens zurückkommen
-_FILE_LIMIT = 1024 * 1024       # Größe je Datei, begrenzt vor allem stdout/stderr
+_FILE_LIMIT = 1024 * 1024       # begrenzt stdout/stderr, andere Dateien sind nicht beschreibbar
 _CODE_ERROR = 3                 # Rückgabewert: Fehler im ausgeführten Code (nicht in der Sandbox)
+_NO_SANDBOX = 4                 # Rückgabewert: Schutz unvollständig, Code nicht ausgeführt
 _BOOT = "import sys; sys.path.insert(0, '/sandbox'); import code_guard; sys.exit(code_guard.sandbox_child())"
 _INSTALL_HINT = (
     "Dafür braucht es bubblewrap (nur Linux), z. B. mit: sudo apt install bubblewrap. "
@@ -165,10 +165,62 @@ def sandbox_command(bwrap: str) -> list:
     for key, value in (("PATH", "/usr/bin:/bin"), ("HOME", "/sandbox"), ("LANG", "C.UTF-8"),
                        ("OPENBLAS_NUM_THREADS", "4"), ("OMP_NUM_THREADS", "4"), ("MKL_NUM_THREADS", "4")):
         cmd += ["--setenv", key, value]
-    # zuletzt / und /dev schreibgeschützt (verhindert nicht, dass der Code selbst ein tmpfs einhängt)
+    # zuletzt alles schreibgeschützt, damit sich keine Dateien im Arbeitsspeicher ablegen lassen
     cmd += ["--chdir", "/sandbox", "--remount-ro", "/dev", "--remount-ro", "/",
             "--", sys.executable, "-I", "-B", "-c", _BOOT]
     return cmd
+
+
+def forbid_new_namespaces() -> None:
+    """seccomp-Filter für diesen Prozess und alle, die er startet; er lässt sich nicht mehr entfernen.
+
+    Ohne ihn könnte der Code in der Sandbox eigene Namespaces anlegen (unshare), sich darin
+    beschreibbare Laufwerke einhängen und viel mehr vom Linux-Kernel erreichen.
+    """
+    import ctypes
+    import errno
+
+    # Prozessor: (Kennung im Filter, Nummern von clone, unshare, setns)
+    arch = {"x86_64": (0xC000003E, 56, 272, 308), "aarch64": (0xC00000B7, 220, 97, 268)}.get(os.uname().machine)
+    if not arch or sys.maxsize <= 2 ** 32:
+        raise OSError(f"Für den Prozessor {os.uname().machine} gibt es keinen Sandbox-Filter.")
+    audit, clone, unshare, setns = arch
+    clone3 = 435
+    namespace_flags = 0x7E020000  # alle CLONE_NEW…-Schalter
+
+    load, equal, at_least, any_bit, ret = 0x20, 0x15, 0x35, 0x45, 0x06  # BPF-Befehle
+    allow, deny = 0x7FFF0000, 0x00050000  # SECCOMP_RET_ALLOW, SECCOMP_RET_ERRNO
+    rules = [  # (Befehl, Sprung wenn wahr, Sprung wenn falsch, Wert)
+        (load, 0, 0, 4),                    # Prozessor-Kennung
+        (equal, 1, 0, audit),
+        (ret, 0, 0, deny | errno.EPERM),    # fremde Aufrufart (z. B. 32 Bit)
+        (load, 0, 0, 0),                    # Nummer des Systemaufrufs
+        (at_least, 0, 1, 0x40000000),       # x32-Aufrufe unter x86_64
+        (ret, 0, 0, deny | errno.EPERM),
+        (equal, 0, 1, clone3),              # Schalter nicht prüfbar: die C-Bibliothek nimmt dann clone
+        (ret, 0, 0, deny | errno.ENOSYS),
+        (equal, 5, 0, unshare),
+        (equal, 4, 0, setns),
+        (equal, 0, 2, clone),
+        (load, 0, 0, 16),                   # erstes Argument von clone
+        (any_bit, 1, 0, namespace_flags),
+        (ret, 0, 0, allow),
+        (ret, 0, 0, deny | errno.EPERM),
+    ]
+
+    class Rule(ctypes.Structure):
+        _fields_ = [("code", ctypes.c_ushort), ("jt", ctypes.c_ubyte), ("jf", ctypes.c_ubyte), ("k", ctypes.c_uint32)]
+
+    class Program(ctypes.Structure):
+        _fields_ = [("len", ctypes.c_ushort), ("filter", ctypes.POINTER(Rule))]
+
+    program = Program(len(rules), (Rule * len(rules))(*[Rule(*r) for r in rules]))
+    libc = ctypes.CDLL(None, use_errno=True)
+    zero = ctypes.c_ulong(0)
+    # PR_SET_NO_NEW_PRIVS, danach PR_SET_SECCOMP im Filter-Modus
+    if (libc.prctl(38, ctypes.c_ulong(1), zero, zero, zero) != 0
+            or libc.prctl(22, ctypes.c_ulong(2), ctypes.byref(program), zero, zero) != 0):
+        raise OSError(ctypes.get_errno(), "Der Sandbox-Filter lässt sich nicht aktivieren")
 
 
 def sandbox_child() -> int:
@@ -178,6 +230,11 @@ def sandbox_child() -> int:
     from contextlib import redirect_stdout
 
     code = sys.stdin.buffer.read().decode("utf-8")
+    try:
+        forbid_new_namespaces()
+    except Exception as e:
+        sys.stdout.buffer.write(f"Die Sandbox ist unvollständig ({e}). Kein Code ausgeführt.".encode("utf-8"))
+        return _NO_SANDBOX
     try:
         # wird der Speicher knapp, beendet Linux zuerst diesen Prozess
         with open("/proc/self/oom_score_adj", "w") as f:
@@ -224,6 +281,11 @@ def run_sandboxed(code: str, timeout: int = TIMEOUT_S):
         return "timeout", ""
     except OSError as e:
         return "unavailable", str(e)
+    # der Code kann auch direkt nach stdout schreiben, an der Kürzung in der Sandbox vorbei
+    if len(text) > OUTPUT_LIMIT + 40:
+        text = text[:OUTPUT_LIMIT] + "\n… (Ausgabe gekürzt)"
+    if proc.returncode == _NO_SANDBOX:
+        return "unavailable", text
     if proc.returncode == 0:
         return "ok", text
     if proc.returncode == _CODE_ERROR:
