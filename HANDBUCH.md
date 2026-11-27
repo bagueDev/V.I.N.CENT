@@ -1,6 +1,6 @@
 # bagueDev Community Launcher – Das Handbuch
 
-> Stand: November 2026 · Version 1.8.2
+> Stand: November 2026 · Version 1.9.0
 
 ---
 
@@ -424,8 +424,9 @@ Die Einstellungen haben keine Auswirkung auf die Chat-UI – dort gelten die Def
 | v1.8.0 | 16.11.2026 | Ordner-Browser für Modell-Verzeichnisse (Overlay, `/api/browse`), Favicon, App-Icon. Details im `CHANGELOG.md`. |
 | v1.8.1 | 27.11.2026 | MCP: `run_python` in bubblewrap-Sandbox (nur Linux), `run_command` repariert und abgesichert, `patch_file` abgesichert, neues Tool `analyze_code`. Details im `CHANGELOG.md`. |
 | v1.8.2 | 27.11.2026 | MCP: `run_python`-Sandbox gehärtet (`seccomp`-Filter gegen neue Namespaces, nur x86_64/ARM64), Ausgabe auch bei direktem Schreiben gekürzt. Details im `CHANGELOG.md`. |
+| v1.9.0 | 27.11.2026 | MCP: neues Tool `search_rag`; `add_project_to_rag` lädt bis 500.000 Zeichen je Datei und ersetzt geänderte Dateien; `search_memory` ohne Projektdateien. Details im `CHANGELOG.md`. |
 
-> Stand: November 2026 · Version 1.8.2
+> Stand: November 2026 · Version 1.9.0
 
 ---
 
@@ -849,6 +850,7 @@ Die Einstellungen haben keine Auswirkung auf die Chat-UI – dort gelten die Def
 | v1.8.0 | 16.11.2026 | Ordner-Browser für Modell-Verzeichnisse (Overlay, `/api/browse`), Favicon, App-Icon. Details im `CHANGELOG.md`. |
 | v1.8.1 | 27.11.2026 | MCP: `run_python` in bubblewrap-Sandbox (nur Linux), `run_command` repariert und abgesichert, `patch_file` abgesichert, neues Tool `analyze_code`. Details im `CHANGELOG.md`. |
 | v1.8.2 | 27.11.2026 | MCP: `run_python`-Sandbox gehärtet (`seccomp`-Filter gegen neue Namespaces, nur x86_64/ARM64), Ausgabe auch bei direktem Schreiben gekürzt. Details im `CHANGELOG.md`. |
+| v1.9.0 | 27.11.2026 | MCP: neues Tool `search_rag`; `add_project_to_rag` lädt bis 500.000 Zeichen je Datei und ersetzt geänderte Dateien; `search_memory` ohne Projektdateien. Details im `CHANGELOG.md`. |
 
 ---
 

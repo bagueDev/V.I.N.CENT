@@ -123,7 +123,7 @@ Categories:
 | Memory | ChromaDB long-term memory, semantic search |
 | Learning | Skill suggestions with approve/reject workflow, usage stats |
 | Diagrams | Mermaid: architecture, workflows, flowcharts, sequence, mindmaps |
-| Project Analysis | RAG indexing, codebase analysis |
+| Project Analysis | RAG indexing and search, codebase analysis |
 | Utilities | Python sandbox (bubblewrap, Linux), safe command execution (hyperframes, ffmpeg, …) |
 
 Full list → [V.I.N.C.E.N.T. MCP Server.md](<V.I.N.C.E.N.T. MCP Server.md>)

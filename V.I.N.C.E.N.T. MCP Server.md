@@ -53,13 +53,14 @@
 - **patch_file** — Ersetzt Zeilen in einer Datei (`start_line`, `end_line` und Inhalt sind Pflicht).
 - **analyze_project** — Analysiert die Struktur und Abhängigkeiten eines Projekts.
 - **analyze_code** — Findet Refactoring-Kandidaten in einer Python-Datei (statische Analyse, führt nichts aus).
-- **add_project_to_rag** — Lädt ein Projekt in den RAG-Index für semantische Suche.
+- **add_project_to_rag** — Lädt ein Projekt in den RAG-Index; geänderte Dateien werden beim erneuten Laden ersetzt.
+- **search_rag** — Durchsucht nur die geladenen Projektdateien und liefert ganze Abschnitte mit Datei und Abstand.
 - **clear_project_rag** — Löscht den Projekt-RAG-Index.
 
 ## 🧠 KI, System & Lernen
 
 - **save_memory** — Speichert eine Information dauerhaft im Langzeitgedächtnis.
-- **search_memory** — Suche in gespeicherten Erinnerungen.
+- **search_memory** — Suche in gespeicherten Erinnerungen (ohne geladene Projektdateien, dafür `search_rag`).
 - **list_memory** — Listet alle gespeicherten Erinnerungen.
 - **delete_memory** — Löscht einen spezifischen Erinnerungseintrag.
 - **list_skills** — Listet alle selbstgelernten Skills auf.

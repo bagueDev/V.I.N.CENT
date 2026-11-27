@@ -27,6 +27,11 @@ JARVIS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, JARVIS_DIR)
 CHROMA_DIR = os.path.join(JARVIS_DIR, ".chroma")
 
+# Projekt-RAG
+_RAG_CHUNK_CHARS = 500
+_RAG_MAX_FILE_CHARS = 500_000   # je Datei, längere werden gekürzt und gemeldet
+_RAG_BATCH = 100                # Chunks pro Schreibvorgang
+
 from mcp.server.fastmcp import FastMCP
 import json
 import shlex
@@ -1864,6 +1869,7 @@ def save_memory(fact: str, importance: str = "normal", source: str = "user") -> 
 def search_memory(query: str, limit: int = 5) -> str:
     """Suche in gespeicherten Erinnerungen (semantische Suche via Embeddings,
     mit Substring-Fallback falls Embeddings mal nicht verfügbar sind).
+    Geladene Projektdateien sind nicht enthalten, dafür gibt es search_rag.
     
     Args:
         query: Die Suchanfrage
@@ -1881,28 +1887,26 @@ def search_memory(query: str, limit: int = 5) -> str:
             _chroma_client = chromadb.PersistentClient(path=chroma_dir)
             _memory_collection = _chroma_client.get_or_create_collection(name="jarvis_memory")
         
-        # Erst versuchen: echte semantische Suche über die Collection-eigene Embedding-Funktion
-        # (dieselbe, die beim .add() genutzt wurde -> konsistente Vektoren, kein Modell-Mismatch)
+        # Erst versuchen: echte semantische Suche mit derselben Embedding-Funktion wie beim .add()
+        # (konsistente Vektoren, kein Modell-Mismatch). Alle Erinnerungen werden exakt verglichen:
+        # Der Näherungsindex von query() kann neben vielen Projekt-Chunks einzelne übergehen.
+        # Projekt-Chunks bleiben draußen; Einträge ohne "source" erfasst $ne mit
+        no_project = {"source": {"$ne": "project"}}
         try:
-            results = _memory_collection.query(
-                query_texts=[query],
-                n_results=limit,
-                include=["documents", "metadatas", "distances"]
-            )
-            docs = results.get('documents', [[]])[0]
-            metas = results.get('metadatas', [[]])[0]
+            from chromadb.utils import embedding_functions
+            results = _memory_collection.get(where=no_project, include=["documents", "metadatas", "embeddings"])
+            best = []
+            if results.get('ids'):
+                wanted = embedding_functions.DefaultEmbeddingFunction()([query])[0]
+                dist = [float(((vector - wanted) ** 2).sum()) for vector in results['embeddings']]
+                best = sorted(range(len(dist)), key=dist.__getitem__)[:max(1, limit)]
+            docs = [results['documents'][n] for n in best]
+            metas = [results['metadatas'][n] for n in best]
             
             if docs:
                 output = [f"# Erinnerungen zu '{query}' (semantisch, {len(docs)} Treffer):\n"]
                 for i, (doc, meta) in enumerate(zip(docs, metas), 1):
                     meta = meta or {}
-                    if meta.get('source') == 'project' and meta.get('file'):
-                        try:
-                            rel = os.path.relpath(meta['file'], get_workspace_dir())
-                        except:
-                            rel = os.path.basename(meta['file'])
-                        output.append(f"\n{i}. 📄 [PROJECT FILE: {rel}] {doc[:100]}")
-                        continue
                     importance = meta.get('importance', 'normal')
                     imp_emoji = {"high": "⭐", "normal": "💡", "low": "📝"}.get(importance, "💡")
                     output.append(f"\n{i}. {imp_emoji} {doc[:100]}")
@@ -1913,7 +1917,7 @@ def search_memory(query: str, limit: int = 5) -> str:
             print(f"Semantische Suche fehlgeschlagen, Fallback auf Substring: {semantic_err}")
         
         # Fallback: Substring-Suche (z.B. wenn Embedding-Backend gerade nicht verfügbar ist)
-        results = _memory_collection.get(include=["documents", "metadatas"])
+        results = _memory_collection.get(where=no_project, include=["documents", "metadatas"])
         
         if not results or not results.get('documents'):
             return "❌ Noch keine Erinnerungen gespeichert."
@@ -1935,14 +1939,6 @@ def search_memory(query: str, limit: int = 5) -> str:
 
         output = [f"# Erinnerungen zu '{query}' (Substring-Fallback, {len(matches)} Treffer):\n"]
         for i, m in enumerate(matches[:limit], 1):
-            meta = m.get('meta') or {}
-            if meta.get('source') == 'project' and meta.get('file'):
-                try:
-                    rel = os.path.relpath(meta['file'], get_workspace_dir())
-                except:
-                    rel = os.path.basename(meta['file'])
-                output.append(f"\n{i}. 📄 [PROJECT FILE: {rel}] {m['fact'][:100]}")
-                continue
             imp_emoji = {"high": "⭐", "normal": "💡", "low": "📝"}.get(m['importance'], "💡")
             output.append(f"\n{i}. {imp_emoji} {m['fact'][:100]}")
 
@@ -2078,6 +2074,85 @@ def analyze_project(root_path: str = None, filepath: str = None, path: str = Non
         _record_tool_call("analyze_project", {"root_path": actual_path, "max_files": max_files}, False, str(e))
         return f"❌ Fehler bei Projekt-Analyse: {str(e)}"
 
+def _rag_read_text(fpath):
+    """Liest eine Textdatei. Rückgabe (text, gekürzt); text ist None, wenn es keine Textdatei ist."""
+    if not os.path.isfile(fpath):
+        return None, False
+    with open(fpath, 'rb') as f:
+        if b"\0" in f.read(8192):
+            return None, False
+    with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
+        text = f.read(_RAG_MAX_FILE_CHARS + 1)
+    return text[:_RAG_MAX_FILE_CHARS], len(text) > _RAG_MAX_FILE_CHARS
+
+def _rag_replace_file(collection, fpath, text):
+    """Bringt die Chunks einer Datei auf den Stand von text. Rückgabe (Anzahl Chunks, geändert)."""
+    old = collection.get(where={"$and": [{"source": "project"}, {"file": fpath}]}, include=["documents"])
+    old_docs = dict(zip(old["ids"], old["documents"]))
+    docs = [text[i:i + _RAG_CHUNK_CHARS] for i in range(0, len(text), _RAG_CHUNK_CHARS)]
+    ids = [f"project_{fpath}_{i}" for i in range(len(docs))]
+    # nur neue und geänderte Chunks neu einbetten
+    todo = [i for i in range(len(docs)) if old_docs.get(ids[i]) != docs[i]]
+    for start in range(0, len(todo), _RAG_BATCH):
+        part = todo[start:start + _RAG_BATCH]
+        collection.upsert(
+            ids=[ids[i] for i in part],
+            documents=[docs[i] for i in part],
+            metadatas=[{"source": "project", "file": fpath, "chunk": i} for i in part]
+        )
+    stale = list(set(old_docs) - set(ids))
+    if stale:
+        collection.delete(ids=stale)
+    return len(docs), bool(todo or stale)
+
+def _rag_names(names, shown=5):
+    """Kurze Aufzählung für Meldungen."""
+    more = f" und {len(names) - shown} weitere" if len(names) > shown else ""
+    return ", ".join(names[:shown]) + more
+
+@mcp.tool()
+def search_rag(query: str, limit: int = 8) -> str:
+    """Durchsucht die mit add_project_to_rag geladenen Projektdateien (semantische Suche, ohne Erinnerungen).
+    Liefert ganze Textabschnitte mit Datei und Abstand (kleiner = ähnlicher).
+
+    Args:
+        query: Die Suchanfrage
+        limit: Maximale Anzahl Abschnitte (Standard: 8, höchstens 20)
+    """
+    if not query or not query.strip():
+        return "❌ Keine Suchanfrage angegeben."
+    try:
+        limit = max(1, min(int(limit), 20))
+        collection = _init_chroma()
+        if collection is None:
+            return "❌ ChromaDB nicht verfügbar."
+        results = collection.query(
+            query_texts=[query],
+            n_results=limit,
+            where={"source": "project"},
+            include=["documents", "metadatas", "distances"]
+        )
+        docs = (results.get("documents") or [[]])[0]
+        if not docs:
+            _record_tool_call("search_rag", {"query": query, "limit": limit}, True, "leer")
+            return "📭 Kein Projekt im RAG-Index. Lade zuerst eines mit add_project_to_rag."
+
+        output = [f"# Projekt-Treffer zu '{query}' ({len(docs)}):"]
+        for n, (doc, meta, dist) in enumerate(zip(docs, results["metadatas"][0], results["distances"][0]), 1):
+            try:
+                name = os.path.relpath(meta["file"], get_workspace_dir())
+            except Exception:
+                name = meta.get("file", "?")
+            output.append(f"\n## {n}. 📄 {name} (Abschnitt {meta.get('chunk', 0) + 1}, Abstand {dist:.3f})\n{doc}")
+
+        # Dateiinhalte dürfen die Markierung von _wrap_stored nicht vorzeitig schließen
+        result = "\n".join(output).replace("[END STORED MEMORY]", "[END_STORED_MEMORY]")
+        _record_tool_call("search_rag", {"query": query, "limit": limit}, True, result[:100])
+        return _wrap_stored(result)
+    except Exception as e:
+        _record_tool_call("search_rag", {"query": query, "limit": limit}, False, str(e))
+        return f"❌ Fehler: {str(e)}"
+
 @mcp.tool()
 def add_project_to_rag(root_path: str = None, filepath: str = None, path: str = None, max_files: int = 50, force_reload: bool = False) -> str:
     """Lädt ein Projekt in den RAG-Index für semantische Suche.
@@ -2092,61 +2167,67 @@ def add_project_to_rag(root_path: str = None, filepath: str = None, path: str = 
     actual_path = root_path or filepath or path
     if not actual_path:
         return "❌ Fehler: 'root_path', 'filepath' oder 'path' Parameter erforderlich"
-    
+
     try:
-        from os import walk
-        from os.path import join, isdir
+        actual_path = os.path.abspath(resolve_path(actual_path))
+        if not is_path_allowed(actual_path):
+            return "❌ Zugriff verweigert."
+        if not os.path.isdir(actual_path):
+            return "❌ Angegebener Pfad ist kein Ordner."
         collection = _init_chroma()
         if collection is None:
             return "❌ ChromaDB nicht verfügbar."
-        
+
         if force_reload:
-            try:
-                collection.delete(where={"source": "project"})
-            except:
-                pass
-        
-        if not is_path_allowed(actual_path):
-            return "❌ Zugriff verweigert."
-        if not isdir(actual_path):
-            return "❌ Angegebener Pfad ist kein Ordner."
-        
-        # Collect files
-        all_files = []
-        for dirpath, dirnames, filenames in walk(actual_path):
-            dirnames[:] = [d for d in dirnames if not d.startswith('.') and d not in ['node_modules', '__pycache__', '.git', 'venv', 'env']]
-            for f in filenames:
-                if not f.startswith('.'):
-                    fpath = join(dirpath, f)
-                    all_files.append(fpath)
-        
-        all_files = all_files[:max_files]
-        
-        # Load into RAG (simplified - reuse existing _load_document logic)
-        loaded = 0
-        for fpath in all_files:
-            try:
-                # Read file content
-                with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                
-                # Simple chunking
-                chunks = [content[i:i+500] for i in range(0, len(content), 500)]
-                for i, chunk in enumerate(chunks[:10]):  # Limit chunks per file
-                    doc_id = f"project_{fpath}_{i}"
-                    collection.add(
-                        ids=[doc_id],
-                        documents=[chunk],
-                        metadatas=[{"source": "project", "file": fpath, "chunk": i}]
-                    )
-                    loaded += 1
-            except:
-                pass
-        
-        result = f"✅ Projekt in RAG geladen: {loaded} Chunks"
-        _record_tool_call("add_project_to_rag", {"root_path": root_path, "max_files": max_files, "force_reload": force_reload}, True, result)
+            collection.delete(where={"source": "project"})
+
+        # config.json von V.I.N.C.E.N.T. enthält API-Keys und kommt nie in den Index
+        own_config = os.path.realpath(os.path.join(JARVIS_DIR, "config.json"))
+        files = changed = chunks = skipped = unchecked = 0
+        truncated, failed = [], []
+        for dirpath, dirnames, filenames in os.walk(actual_path):
+            dirnames[:] = sorted(d for d in dirnames if not d.startswith('.') and d not in ['node_modules', '__pycache__', '.git', 'venv', 'env'])
+            for name in sorted(filenames):
+                if name.startswith('.'):
+                    continue
+                if files >= max_files:
+                    unchecked += 1
+                    continue
+                fpath = os.path.join(dirpath, name)
+                rel = os.path.relpath(fpath, actual_path)
+                try:
+                    text, cut = None, False
+                    # Symlinks dürfen nicht aus dem erlaubten Bereich herausführen
+                    if os.path.realpath(fpath) != own_config and is_path_allowed(fpath):
+                        text, cut = _rag_read_text(fpath)
+                    count, updated = _rag_replace_file(collection, fpath, text or "")
+                    if text is None:
+                        skipped += 1
+                        continue
+                    files += 1
+                    chunks += count
+                    changed += updated
+                    if cut:
+                        truncated.append(rel)
+                except Exception as e:
+                    failed.append(f"{rel} ({e})")
+
+        if failed and not files:
+            result = f"❌ Keine Datei geladen. Fehler: {_rag_names(failed)}"
+        else:
+            lines = [f"✅ Projekt in RAG geladen: {files} Dateien ({changed} neu oder geändert, {files - changed} unverändert), {chunks} Chunks"]
+            if truncated:
+                lines.append(f"⚠️ Gekürzt (nur die ersten {_RAG_MAX_FILE_CHARS} Zeichen): {_rag_names(truncated)}")
+            if failed:
+                lines.append(f"⚠️ Fehler bei: {_rag_names(failed)}")
+            if skipped:
+                lines.append(f"ℹ️ Übersprungen (keine Textdatei oder nicht erlaubt): {skipped}")
+            if unchecked:
+                lines.append(f"⚠️ Grenze max_files={max_files} erreicht: {unchecked} weitere Dateien nicht geladen.")
+            result = "\n".join(lines)
+        _record_tool_call("add_project_to_rag", {"root_path": root_path, "max_files": max_files, "force_reload": force_reload}, result.startswith("✅"), result)
         return result
-        
+
     except Exception as e:
         _record_tool_call("add_project_to_rag", {"root_path": root_path, "max_files": max_files}, False, str(e))
         return f"❌ Fehler beim Laden in RAG: {str(e)}"
@@ -2382,7 +2463,7 @@ def vincent_status() -> str:
             "duckduckgo_search", "duckduckgo_images",
             "tavily_search", "tavily_news", "tavily_deep_search",
             "save_memory", "search_memory", "list_memory", "delete_memory",
-            "analyze_project", "analyze_code", "add_project_to_rag", "clear_project_rag",
+            "analyze_project", "analyze_code", "add_project_to_rag", "search_rag", "clear_project_rag",
             "patch_file", "scan_folder",
             "create_diagram"
         ],
@@ -3361,6 +3442,7 @@ def vincent_tools_resource() -> str:
         {"name": "patch_file", "description": "Ändert Code-Stellen gezielt", "icon": "🧵", "category": "file"},
         {"name": "scan_folder", "description": "Scannt Verzeichnis rekursiv", "icon": "🔭", "category": "file"},
         {"name": "add_project_to_rag", "description": "Projekt zu RAG hinzufügen", "icon": "📥", "category": "system"},
+        {"name": "search_rag", "description": "Projekt-RAG durchsuchen", "icon": "🔎", "category": "system"},
         {"name": "clear_project_rag", "description": "Projekt-RAG löschen", "icon": "🧹", "category": "system"},
         {"name": "create_diagram", "description": "Generiert Mermaid-Diagramme", "icon": "📊", "category": "util"},
         {"name": "web_scrape", "description": "Scraped Webseite mit crawl4ai (1 Seite)", "icon": "🕷️", "category": "web"},

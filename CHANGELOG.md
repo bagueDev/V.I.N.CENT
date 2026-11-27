@@ -1,5 +1,22 @@
 # Changelog – V.I.N.C.E.N.T.
 
+## [1.9.0] – 2026-11-27 (Projekt-RAG)
+
+### Neu
+- **`search_rag`:** durchsucht nur die geladenen Projektdateien und liefert ganze Abschnitte mit Datei und Abstand (Standard 8, höchstens 20 Treffer).
+
+### Geändert
+- **`add_project_to_rag`** lädt bis zu 500.000 Zeichen je Datei (vorher 5.000) und meldet gekürzte, übersprungene und fehlerhafte Dateien sowie das Erreichen von `max_files`.
+- Beim erneuten Laden werden geänderte Dateien ersetzt, unveränderte bleiben. Gelöschte Dateien verschwinden erst mit `force_reload`.
+- Binärdateien werden übersprungen und zählen nicht zu `max_files`.
+- **`search_memory`** liefert keine Projektdateien mehr, damit sie Erinnerungen nicht verdrängen. Dafür gibt es `search_rag`. Erinnerungen werden jetzt exakt verglichen, weil der Näherungsindex neben vielen Projekt-Abschnitten im Test einzelne übergangen hat.
+
+### Sicherheit
+- `add_project_to_rag` folgt keinen Symlinks mehr aus dem erlaubten Bereich heraus und nimmt die `config.json` von V.I.N.C.E.N.T. (API-Keys) nicht auf.
+- `force_reload` löscht den Index erst, wenn der Pfad geprüft ist.
+
+---
+
 ## [1.8.2] – 2026-11-27 (Sandbox-Härtung)
 
 ### Sicherheit

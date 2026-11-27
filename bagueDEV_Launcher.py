@@ -45,7 +45,7 @@ def _load_config():
 
 _cfg = _load_config()
 LLAMA_CPP_DIR = _cfg["llama_cpp_dir"]
-VERSION = "1.8.2"
+VERSION = "1.9.0"
 LLAMA_SERVER = _cfg["llama_server"]
 _raw_models = _cfg["models_dir"]
 DEFAULT_MODELS = _raw_models if isinstance(_raw_models, list) else [_raw_models]
