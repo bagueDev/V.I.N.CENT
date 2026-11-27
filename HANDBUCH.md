@@ -263,7 +263,7 @@ cd V.I.N.CENT
 python3 -m venv venv
 source venv/bin/activate
 
-# 3. Dependencies installieren
+# 3. Dependencies installieren (run_python braucht zusätzlich: sudo apt install bubblewrap)
 pip install -r requirements.txt
 playwright install chromium
 
@@ -686,7 +686,7 @@ cd community-launcher
 python3 -m venv venv
 source venv/bin/activate
 
-# 3. Dependencies installieren
+# 3. Dependencies installieren (run_python braucht zusätzlich: sudo apt install bubblewrap)
 pip install -r requirements.txt
 playwright install chromium
 

@@ -9,7 +9,6 @@ Verwendung:
     
 Der Server läuft standardmäßig auf http://127.0.0.1:8000/mcp
 """
-import multiprocessing
 import sys
 import os
 import shutil
@@ -1956,46 +1955,20 @@ def search_memory(query: str, limit: int = 5) -> str:
 
 
 
-def _exec_in_process(code: str, result_queue: multiprocessing.Queue) -> None:
-    """Führt Code isoliert in einem Kindprozess aus. Läuft NICHT im Hauptprozess."""
-    import io
-    from contextlib import redirect_stdout
-    import code_guard
-    output = io.StringIO()
-    try:
-        code_guard.limit_resources()
-        with redirect_stdout(output):
-            exec(code, code_guard.make_exec_globals())
-        result_queue.put(("ok", output.getvalue()))
-    except Exception as e:
-        result_queue.put(("error", str(e) or type(e).__name__))
-
-
 @mcp.tool()
 def run_python(code: str) -> str:
-    """Führt Python-Code aus (safety limited). Max 8000 Zeichen.
+    """Führt Python-Code in einer Sandbox aus (reine Berechnungen: kein Netz, keine Dateien).
+    Braucht Linux mit bubblewrap. Max 8000 Zeichen.
     Args:
         code: Python-Code zum Ausführen (max 8000 Zeichen)
     """
     if len(code) > 8000:
         return f"❌ Code zu groß ({len(code)} Zeichen). Maximal 8000 Zeichen pro Aufruf."
     import code_guard
-    blocked = code_guard.check_python_code(code)
-    if blocked:
-        _record_tool_call("run_python", {"code": code[:100]}, False, "blocked")
-        return blocked
-
-    q = multiprocessing.Queue()
-    p = multiprocessing.Process(target=_exec_in_process, args=(code, q))
-    p.start()
-    p.join(timeout=10)
-    if p.is_alive():
-        p.terminate()
-        _record_tool_call("run_python", {"code": code[:100]}, False, "timeout")
-        return "❌ Timeout (10s) – Code abgebrochen"
-    status, result = q.get()
-    _record_tool_call("run_python", {"code": code[:100]}, status == "ok", result[:100])
-    return f"✅ Code ausgeführt\nOutput:\n{result}" if status == "ok" else f"❌ Fehler: {result}"
+    status, message = code_guard.execute(code)
+    detail = status if status in ("blocked", "timeout", "unavailable") else message[:100]
+    _record_tool_call("run_python", {"code": code[:100]}, status == "ok", detail)
+    return message
 
 @mcp.tool()
 def analyze_code(filepath: str = None, path: str = None) -> str:

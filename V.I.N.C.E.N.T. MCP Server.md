@@ -68,5 +68,5 @@
 - **show_tool_usage** — Zeigt Statistiken zur Tool-Nutzung.
 - **vincent_status** — Gibt den aktuellen Betriebszustand von V.I.N.C.E.N.T. zurück.
 - **create_diagram** — Generiert Mermaid-Diagramme (Architecture, Flowchart, etc.).
-- **run_python** — Führt Python-Code für reine Berechnungen aus (kein Datei-, Netz- oder Prozesszugriff).
+- **run_python** — Führt Python-Code für reine Berechnungen in einer Sandbox aus (kein Netz, keine eigenen Dateien; nur Linux mit `bubblewrap`).
 - **run_command** — Führt erlaubte Befehle ohne Shell aus (`npx hyperframes`, `npx skills`, `ffmpeg`, `ls`, `cat`, `mkdir`).

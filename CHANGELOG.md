@@ -8,7 +8,10 @@
 
 ### Sicherheit
 - **`run_command`:** Datei-Argumente müssen auch bei `ffmpeg` im erlaubten Bereich liegen; Netzwerk- und Sonderprotokolle sowie Shell-Operatoren werden abgelehnt (`command_guard.py`). `npx hyperframes` und `npx skills` bleiben unverändert erlaubt.
-- **`run_python`:** Code wird vor der Ausführung geprüft, Datei-, Netz- und Prozesszugriffe sind gesperrt, Speicher und Rechenzeit begrenzt (`code_guard.py`). Gedacht für reine Berechnungen; Skripte, die Dateien schreiben oder ins Netz gehen, laufen damit nicht mehr. Der Schutz ist keine vollständige Sandbox.
+- **`run_python`** läuft in einer Sandbox mit [bubblewrap](https://github.com/containers/bubblewrap) (`code_guard.py`): Vom Rechner sind nur System und Python-Pakete lesbar, auf dem Rechner ist nichts beschreibbar, es gibt kein Netz, keine Umgebungsvariablen des Rechners und keine Sicht auf dessen Prozesse. Laufzeit, Speicher je Prozess, Zahl der Prozesse und Ausgabe sind begrenzt. Gedacht für reine Berechnungen.
+- **Bekannte Einschränkung:** Der gesamte Speicherverbrauch der Sandbox ist nicht begrenzt. Code kann dort außerdem ein eigenes `tmpfs` im Arbeitsspeicher einhängen und darin schreiben. Das kann den Rechner vorübergehend ausbremsen; Dateien auf dem Rechner bleiben dabei unerreichbar. Eine Sandbox ist keine virtuelle Maschine und schützt nicht gegen Lücken im Linux-Kernel.
+- **Neue Voraussetzung:** Linux mit `bubblewrap` (`sudo apt install bubblewrap`). Ohne sie wird kein Code ausgeführt.
+- **Korrektur:** Die erste Fassung (Commit `7f4538f`) prüfte nur den Code und ließ sich umgehen. Sie sperrte Datei-, Netz- und Prozesszugriffe nicht zuverlässig, anders als dort beschrieben.
 
 ### Neu
 - **`analyze_code`:** statische Analyse einer Python-Datei auf Refactoring-Kandidaten (`code_analyzer.py`).

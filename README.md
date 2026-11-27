@@ -124,7 +124,7 @@ Categories:
 | Learning | Skill suggestions with approve/reject workflow, usage stats |
 | Diagrams | Mermaid: architecture, workflows, flowcharts, sequence, mindmaps |
 | Project Analysis | RAG indexing, codebase analysis |
-| Utilities | Python sandbox, safe command execution (hyperframes, ffmpeg, …) |
+| Utilities | Python sandbox (bubblewrap, Linux), safe command execution (hyperframes, ffmpeg, …) |
 
 Full list → [V.I.N.C.E.N.T. MCP Server.md](<V.I.N.C.E.N.T. MCP Server.md>)
 
@@ -170,6 +170,7 @@ Du behältst die Kontrolle über deine Modelle, deine Daten und deine Privatsph�
 - Python 3.10+
 - [llama.cpp](https://github.com/ggerganov/llama.cpp) build (`llama-server` binary) — **b10268+ empfohlen** (nutzt `--reasoning-format`; ältere Builds lecken rohe Reasoning/Tool-Tags in Claude Code)
 - Vulkan-capable GPU recommended (CPU works)
+- Linux with [bubblewrap](https://github.com/containers/bubblewrap) for `run_python` (`sudo apt install bubblewrap`) — ohne diese Sandbox führt das Tool keinen Code aus
 - Optional: Tavily API key for enhanced search
 
 Install dependencies:

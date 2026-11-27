@@ -1,14 +1,24 @@
 """Gemeinsame Schutzschicht für run_python (V.I.N.C.E.N.T. MCP-Server).
 
-Das ist KEINE echte Sandbox, sondern Schutz vor Fehlgriffen des Modells:
-  1. check_python_code(): statische AST-Prüfung vor der Ausführung
-  2. make_exec_globals(): Laufzeit-Schutz (gesperrte Builtins, geprüfter __import__)
-  3. limit_resources():   Speicher-/CPU-Limits im Kindprozess
+Die Grenze ist die Sandbox (bubblewrap, nur Linux): Der Code sieht vom Rechner nur das System
+und die Python-Pakete (nur lesbar), kann auf dem Rechner nichts schreiben, hat kein Netz und
+sieht dessen Umgebungsvariablen nicht. Ohne bubblewrap wird nichts ausgeführt.
+Nicht begrenzt ist der gesamte Speicherverbrauch: Das Limit gilt je Prozess, und über einen
+eigenen User-Namespace lässt sich in der Sandbox ein beschreibbares tmpfs einhängen.
 
+check_python_code() und make_exec_globals() sind KEIN Schutz, den man nicht umgehen könnte
+(z. B. führen Bibliotheken selbst Dateizugriffe aus). Sie geben dem Modell nur früh den Hinweis
+auf das passende Werkzeug:
 Dateien -> read_file/write_file/patch_file, Web -> fetch_url, Shell -> run_command.
 """
 import ast
 import builtins as _builtins
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
 
 # Module, die Dateisystem, Netzwerk, Prozesse oder Interpreter-Interna berühren
 BLOCKED_MODULES = {
@@ -93,8 +103,7 @@ def make_exec_globals() -> dict:
 def limit_resources(mem_mb: int = 1024, cpu_s: int = 10) -> None:
     """Im Kindprozess aufrufen, bevor der Code läuft (Linux).
 
-    mem_mb gilt zusätzlich zum bereits belegten Adressraum: Der Kindprozess erbt ihn vom Server,
-    und mit geladenem torch liegt allein dieser schon bei mehreren GB.
+    mem_mb gilt zusätzlich zum bereits belegten Adressraum (Interpreter und geladene Bibliotheken).
     """
     try:
         import resource
@@ -108,3 +117,131 @@ def limit_resources(mem_mb: int = 1024, cpu_s: int = 10) -> None:
         resource.setrlimit(resource.RLIMIT_CPU, (cpu_s + 2, cpu_s + 2))
     except Exception:
         pass
+
+
+# --- Sandbox ---------------------------------------------------------------------------------
+
+TIMEOUT_S = 10
+OUTPUT_LIMIT = 100_000          # Zeichen, die höchstens zurückkommen
+_FILE_LIMIT = 1024 * 1024       # Größe je Datei, begrenzt vor allem stdout/stderr
+_CODE_ERROR = 3                 # Rückgabewert: Fehler im ausgeführten Code (nicht in der Sandbox)
+_BOOT = "import sys; sys.path.insert(0, '/sandbox'); import code_guard; sys.exit(code_guard.sandbox_child())"
+_INSTALL_HINT = (
+    "Dafür braucht es bubblewrap (nur Linux), z. B. mit: sudo apt install bubblewrap. "
+    "Ohne diese Sandbox wird kein Code ausgeführt."
+)
+
+
+def _python_dirs() -> list:
+    """Ordner außerhalb von /usr, die der Interpreter braucht (z. B. die .venv)."""
+    home = os.path.realpath(os.path.expanduser("~"))
+    dirs = []
+    for d in (sys.prefix, sys.base_prefix, sys.exec_prefix, sys.base_exec_prefix,
+              os.path.dirname(os.path.realpath(sys.executable))):
+        d, real = os.path.abspath(d), os.path.realpath(d)
+        if real == "/usr" or real.startswith("/usr/"):
+            continue
+        if (home + os.sep).startswith(real.rstrip(os.sep) + os.sep):
+            raise OSError(f"Der Python-Ordner {real} enthält persönliche Daten und wird nicht freigegeben.")
+        dirs += [x for x in (real, d) if x not in dirs]
+    return dirs
+
+
+def sandbox_command(bwrap: str) -> list:
+    """bwrap-Aufruf: System und Python nur lesbar, sonst nichts vom Rechner, kein Netz."""
+    cmd = [bwrap, "--unshare-all", "--die-with-parent", "--new-session", "--clearenv",
+           "--ro-bind", "/usr", "/usr"]
+    for d in ("/bin", "/sbin", "/lib", "/lib32", "/lib64"):
+        if os.path.islink(d):
+            cmd += ["--symlink", os.readlink(d), d]
+        elif os.path.isdir(d):
+            cmd += ["--ro-bind", d, d]
+    for f in ("/etc/ld.so.cache", "/etc/alternatives", "/etc/localtime"):
+        cmd += ["--ro-bind-try", f, f]
+    cmd += ["--proc", "/proc", "--dev", "/dev"]
+    for d in _python_dirs():
+        cmd += ["--ro-bind", d, d]
+    cmd += ["--ro-bind", os.path.abspath(__file__), "/sandbox/code_guard.py"]
+    for key, value in (("PATH", "/usr/bin:/bin"), ("HOME", "/sandbox"), ("LANG", "C.UTF-8"),
+                       ("OPENBLAS_NUM_THREADS", "4"), ("OMP_NUM_THREADS", "4"), ("MKL_NUM_THREADS", "4")):
+        cmd += ["--setenv", key, value]
+    # zuletzt / und /dev schreibgeschützt (verhindert nicht, dass der Code selbst ein tmpfs einhängt)
+    cmd += ["--chdir", "/sandbox", "--remount-ro", "/dev", "--remount-ro", "/",
+            "--", sys.executable, "-I", "-B", "-c", _BOOT]
+    return cmd
+
+
+def sandbox_child() -> int:
+    """Läuft IN der Sandbox: Code von stdin ausführen, Ausgabe oder Fehlertext nach stdout."""
+    import io
+    import resource
+    from contextlib import redirect_stdout
+
+    code = sys.stdin.buffer.read().decode("utf-8")
+    try:
+        # wird der Speicher knapp, beendet Linux zuerst diesen Prozess
+        with open("/proc/self/oom_score_adj", "w") as f:
+            f.write("1000")
+    except OSError:
+        pass
+    limits = [(resource.RLIMIT_FSIZE, _FILE_LIMIT), (resource.RLIMIT_CORE, 0)]
+    # Ab Linux 5.14 zählt das Prozess-Limit nur innerhalb der Sandbox, davor alle Prozesse des Benutzers
+    release = re.match(r"(\d+)\.(\d+)", os.uname().release)
+    if release and (int(release[1]), int(release[2])) >= (5, 14):
+        limits.append((resource.RLIMIT_NPROC, 64))
+    for limit, value in limits:
+        resource.setrlimit(limit, (value, value))
+    output = io.StringIO()
+    try:
+        limit_resources()
+        with redirect_stdout(output):
+            exec(code, make_exec_globals())
+        status, text = 0, output.getvalue()
+    except BaseException as e:
+        status, text = _CODE_ERROR, str(e) or type(e).__name__
+    if len(text) > OUTPUT_LIMIT:
+        text = text[:OUTPUT_LIMIT] + "\n… (Ausgabe gekürzt)"
+    sys.stdout.buffer.write(text.encode("utf-8", "replace"))
+    sys.stdout.flush()
+    return status
+
+
+def run_sandboxed(code: str, timeout: int = TIMEOUT_S):
+    """Führt Code in der Sandbox aus. Rückgabe (status, text): ok, error, timeout oder unavailable."""
+    bwrap = shutil.which("bwrap") if sys.platform.startswith("linux") else None
+    if not bwrap:
+        return "unavailable", _INSTALL_HINT
+    try:
+        with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
+            # env: Der erste Prozess der Sandbox ist bwrap selbst, seine Umgebung wäre dort lesbar
+            proc = subprocess.run(sandbox_command(bwrap), input=code.encode("utf-8", "replace"),
+                                  stdout=out, stderr=err, timeout=timeout, env={"PATH": "/usr/bin:/bin"})
+            out.seek(0)
+            text = out.read(4 * OUTPUT_LIMIT + 100).decode("utf-8", "replace")
+            err.seek(0)
+            detail = err.read(4000).decode("utf-8", "replace").strip()
+    except subprocess.TimeoutExpired:
+        return "timeout", ""
+    except OSError as e:
+        return "unavailable", str(e)
+    if proc.returncode == 0:
+        return "ok", text
+    if proc.returncode == _CODE_ERROR:
+        return "error", text
+    if detail.startswith("bwrap:"):
+        return "unavailable", f"Die Sandbox startet nicht ({detail.splitlines()[0]}). Kein Code ausgeführt."
+    return "error", detail.splitlines()[-1] if detail else f"Prozess beendet (Code {proc.returncode})"
+
+
+def execute(code: str):
+    """Prüfen und in der Sandbox ausführen. Rückgabe (status, Meldung für das Modell)."""
+    blocked = check_python_code(code)
+    if blocked:
+        return "blocked", blocked
+    status, text = run_sandboxed(code)
+    return status, {
+        "ok": f"✅ Code ausgeführt\nOutput:\n{text}",
+        "error": f"❌ Fehler: {text}",
+        "timeout": f"❌ Timeout ({TIMEOUT_S}s) – Code abgebrochen",
+        "unavailable": f"❌ run_python ist nicht verfügbar: {text}",
+    }[status]
