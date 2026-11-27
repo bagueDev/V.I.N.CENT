@@ -1,5 +1,20 @@
 # Changelog – V.I.N.C.E.N.T.
 
+## [Unveröffentlicht] – 2026-11-27 (MCP-Server)
+
+### Fixes
+- **`run_command`** war seit 1.7.0 defekt: Jeder erlaubte Befehl endete mit `name 'parts' is not defined`.
+- **`patch_file`:** `start_line`, `end_line` und Inhalt sind Pflicht (vorher konnte ein unvollständiger Aufruf die erste Zeile löschen). Windows-Zeilenenden bleiben erhalten, jedes Backup bekommt einen eigenen Namen.
+
+### Sicherheit
+- **`run_command`:** Datei-Argumente müssen auch bei `ffmpeg` im erlaubten Bereich liegen; Netzwerk- und Sonderprotokolle sowie Shell-Operatoren werden abgelehnt (`command_guard.py`). `npx hyperframes` und `npx skills` bleiben unverändert erlaubt.
+- **`run_python`:** Code wird vor der Ausführung geprüft, Datei-, Netz- und Prozesszugriffe sind gesperrt, Speicher und Rechenzeit begrenzt (`code_guard.py`). Gedacht für reine Berechnungen; Skripte, die Dateien schreiben oder ins Netz gehen, laufen damit nicht mehr. Der Schutz ist keine vollständige Sandbox.
+
+### Neu
+- **`analyze_code`:** statische Analyse einer Python-Datei auf Refactoring-Kandidaten (`code_analyzer.py`).
+
+---
+
 ## [1.8.0] – 2026-11-16 (Ordner-Browser & Icon)
 
 ### Launcher

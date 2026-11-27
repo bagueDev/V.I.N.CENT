@@ -50,8 +50,9 @@
 - **delete_file** — Löscht eine Datei oder ein leeres Verzeichnis.
 - **search_files** — Durchsucht Dateien nach einem generischen Pattern (grep-like).
 - **grep** — Durchsucht Dateien nach einem Pattern mit Regex-Unterstützung.
-- **patch_file** — Ersetzt Zeilen in einer Datei (Zeilenbereich).
+- **patch_file** — Ersetzt Zeilen in einer Datei (`start_line`, `end_line` und Inhalt sind Pflicht).
 - **analyze_project** — Analysiert die Struktur und Abhängigkeiten eines Projekts.
+- **analyze_code** — Findet Refactoring-Kandidaten in einer Python-Datei (statische Analyse, führt nichts aus).
 - **add_project_to_rag** — Lädt ein Projekt in den RAG-Index für semantische Suche.
 - **clear_project_rag** — Löscht den Projekt-RAG-Index.
 
@@ -67,5 +68,5 @@
 - **show_tool_usage** — Zeigt Statistiken zur Tool-Nutzung.
 - **vincent_status** — Gibt den aktuellen Betriebszustand von V.I.N.C.E.N.T. zurück.
 - **create_diagram** — Generiert Mermaid-Diagramme (Architecture, Flowchart, etc.).
-- **run_python** — Führt Python-Code aus (mit Sicherheitsbeschränkungen).
-- **run_command** — Führt erlaubte Kommandozeilen-Befehle aus.
+- **run_python** — Führt Python-Code für reine Berechnungen aus (kein Datei-, Netz- oder Prozesszugriff).
+- **run_command** — Führt erlaubte Befehle ohne Shell aus (`npx hyperframes`, `npx skills`, `ffmpeg`, `ls`, `cat`, `mkdir`).

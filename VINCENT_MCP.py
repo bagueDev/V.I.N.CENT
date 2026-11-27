@@ -13,6 +13,7 @@ import multiprocessing
 import sys
 import os
 import shutil
+import io
 import warnings
 # Suppress the RequestsDependencyWarning to prevent UI confusion
 try:
@@ -30,6 +31,7 @@ CHROMA_DIR = os.path.join(JARVIS_DIR, ".chroma")
 from mcp.server.fastmcp import FastMCP
 import json
 import shlex
+import command_guard
 import time
 import requests
 import subprocess
@@ -1958,13 +1960,15 @@ def _exec_in_process(code: str, result_queue: multiprocessing.Queue) -> None:
     """Führt Code isoliert in einem Kindprozess aus. Läuft NICHT im Hauptprozess."""
     import io
     from contextlib import redirect_stdout
+    import code_guard
     output = io.StringIO()
     try:
+        code_guard.limit_resources()
         with redirect_stdout(output):
-            exec(code, {"__builtins__": __builtins__})
+            exec(code, code_guard.make_exec_globals())
         result_queue.put(("ok", output.getvalue()))
     except Exception as e:
-        result_queue.put(("error", str(e)))
+        result_queue.put(("error", str(e) or type(e).__name__))
 
 
 @mcp.tool()
@@ -1975,6 +1979,11 @@ def run_python(code: str) -> str:
     """
     if len(code) > 8000:
         return f"❌ Code zu groß ({len(code)} Zeichen). Maximal 8000 Zeichen pro Aufruf."
+    import code_guard
+    blocked = code_guard.check_python_code(code)
+    if blocked:
+        _record_tool_call("run_python", {"code": code[:100]}, False, "blocked")
+        return blocked
 
     q = multiprocessing.Queue()
     p = multiprocessing.Process(target=_exec_in_process, args=(code, q))
@@ -1987,6 +1996,38 @@ def run_python(code: str) -> str:
     status, result = q.get()
     _record_tool_call("run_python", {"code": code[:100]}, status == "ok", result[:100])
     return f"✅ Code ausgeführt\nOutput:\n{result}" if status == "ok" else f"❌ Fehler: {result}"
+
+@mcp.tool()
+def analyze_code(filepath: str = None, path: str = None) -> str:
+    """Analysiert eine Python-Datei statisch (AST) auf Refactoring-Kandidaten:
+    zu komplexe/lange Funktionen, zu viele Parameter, mutable Default-Argumente,
+    bare except, doppelte Funktionen/Strings, unbenutzte Imports/Variablen.
+    Fuehrt den Code NICHT aus.
+
+    Args:
+        filepath: Pfad zur .py-Datei (bevorzugt)
+        path: Alternativer Parametername (fuer Abwaertskompatibilitaet)
+    """
+    actual_path = resolve_path(filepath or path)
+    if not actual_path:
+        return "❌ Fehler: 'filepath' oder 'path' Parameter erforderlich"
+    if not is_path_allowed(actual_path):
+        _record_tool_call("analyze_code", {"filepath": actual_path}, False, "access denied")
+        return "❌ Zugriff verweigert: Pfad außerhalb der Whitelist."
+    if not os.path.isfile(actual_path):
+        _record_tool_call("analyze_code", {"filepath": actual_path}, False, "not found")
+        return f"❌ Datei nicht gefunden: {actual_path}"
+    try:
+        with open(actual_path, 'r', encoding='utf-8', errors='ignore') as f:
+            code = f.read()
+        import code_analyzer
+        findings = code_analyzer.analyze_source(code, os.path.basename(actual_path))
+        result = code_analyzer.format_report(findings, os.path.basename(actual_path))
+        _record_tool_call("analyze_code", {"filepath": actual_path}, True, result[:100])
+        return result
+    except Exception as e:
+        _record_tool_call("analyze_code", {"filepath": actual_path}, False, str(e))
+        return f"❌ Fehler bei der Code-Analyse: {e}"
 
 # ========== PROJECT & RAG TOOLS ==========
 
@@ -2151,8 +2192,10 @@ def clear_project_rag() -> str:
         return f"❌ Fehler beim Löschen: {str(e)}"
 
 @mcp.tool()
-def patch_file(file_path: str = None, filepath: str = None, path: str = None, start_line: int = 1, end_line: int = 1, new_content: str = "", base64_content: str = None) -> str:
-    """Ersetzt Zeilen in einer Datei (1-basiert, inklusiv)."""
+def patch_file(file_path: str = None, filepath: str = None, path: str = None, start_line: Optional[int] = None, end_line: Optional[int] = None, new_content: Optional[str] = None, base64_content: str = None) -> str:
+    """Ersetzt die Zeilen start_line bis end_line (1-basiert, inklusiv) durch new_content.
+    start_line, end_line und new_content (oder base64_content) sind Pflicht; new_content="" löscht die Zeilen.
+    Anhängen: start_line = end_line = Zeilenzahl + 1."""
     actual_path = resolve_path(file_path or filepath or path)
     if not actual_path:
         return "❌ Fehler: 'file_path', 'filepath' oder 'path' Parameter erforderlich"
@@ -2161,6 +2204,12 @@ def patch_file(file_path: str = None, filepath: str = None, path: str = None, st
         return f"❌ Zugriff verweigert: {actual_path}"
     if not os.path.isfile(actual_path):
         return f"❌ Datei nicht gefunden: {actual_path}"
+    
+    # Ohne vollständige Angaben nicht raten: sonst würden Zeilen ungewollt gelöscht
+    if start_line is None or end_line is None:
+        return "❌ Fehler: 'start_line' und 'end_line' sind erforderlich"
+    if new_content is None and not base64_content:
+        return "❌ Fehler: 'new_content' oder 'base64_content' erforderlich (new_content=\"\" löscht die Zeilen)"
     
     try:
         # Decode base64 if provided
@@ -2172,26 +2221,30 @@ def patch_file(file_path: str = None, filepath: str = None, path: str = None, st
             except Exception as e:
                 return f"❌ Fehler beim Dekodieren von base64_content: {str(e)}"
         
-        with open(actual_path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
+        with open(actual_path, 'r', encoding='utf-8', newline='') as f:
+            raw = f.read()
+        # Mit \n arbeiten, Windows-Zeilenenden beim Speichern wiederherstellen
+        eol = "\r\n" if "\r\n" in raw else "\n"
+        lines = io.StringIO(raw.replace("\r\n", "\n")).readlines()
+        new_content = new_content.replace("\r\n", "\n")
         
-        # Convert to 0-based index
-        idx_start = max(start_line - 1, 0)
-        idx_end = min(end_line, len(lines))
+        if not (1 <= start_line <= end_line and start_line <= len(lines) + 1):
+            return f"❌ Fehler: Zeilen {start_line}-{end_line} passen nicht, die Datei hat {len(lines)} Zeilen"
         
-        patch_lines = new_content.splitlines(keepends=True)
-        if patch_lines and not patch_lines[-1].endswith('\n'):
-            patch_lines[-1] += '\n'
+        if new_content and not new_content.endswith('\n'):
+            new_content += '\n'
+        head = "".join(lines[:start_line - 1])
+        if head and not head.endswith('\n'):
+            head += '\n'
+        content = head + new_content + "".join(lines[end_line:])
         
-        new_lines = lines[:idx_start] + patch_lines + lines[idx_end:]
-        
-        # Backup mit Timestamp
+        # Backup mit Timestamp (Mikrosekunden, damit schnelle Folgeaufrufe nichts überschreiben)
         import datetime
-        backup_path = actual_path + ".bak_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = actual_path + ".bak_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         shutil.copy2(actual_path, backup_path)
         
-        with open(actual_path, 'w', encoding='utf-8') as f:
-            f.writelines(new_lines)
+        with open(actual_path, 'w', encoding='utf-8', newline='') as f:
+            f.write(content.replace("\n", eol))
         
         _record_tool_call("patch_file", {"file_path": actual_path, "start_line": start_line, "end_line": end_line}, True, f"Patched {actual_path}")
         return f"✅ Datei gepatcht: {actual_path} ({len(new_content)} Zeichen, Backup: {backup_path})"
@@ -2356,7 +2409,7 @@ def vincent_status() -> str:
             "duckduckgo_search", "duckduckgo_images",
             "tavily_search", "tavily_news", "tavily_deep_search",
             "save_memory", "search_memory", "list_memory", "delete_memory",
-            "analyze_project", "add_project_to_rag", "clear_project_rag",
+            "analyze_project", "analyze_code", "add_project_to_rag", "clear_project_rag",
             "patch_file", "scan_folder",
             "create_diagram"
         ],
@@ -3235,18 +3288,6 @@ gitGraph
 
 # ========== HYPERFRAMES TOOLS ==========
 
-def _validate_cmd_paths(parts: list, cwd: str):
-    """Prüft Pfad-Argumente von cat/ls/mkdir gegen is_path_allowed. Flags mit - werden geskippt."""
-    if not parts or parts[0] not in ("cat", "ls", "mkdir"):
-        return None
-    for tok in parts[1:]:
-        if not tok or tok.startswith("-"):
-            continue
-        p = tok if os.path.isabs(tok) else os.path.join(cwd, tok)
-        if not is_path_allowed(os.path.abspath(p)):
-            return tok
-    return None
-
 _SAFE_COMMANDS = ["npx hyperframes", "npx skills", "npx --yes hyperframes", "npx --yes skills", "ffmpeg", "ls", "cat", "mkdir"]
 
 @mcp.tool()
@@ -3258,7 +3299,7 @@ def run_command(
     """Führt ein erlaubtes Kommando aus (Whitelist: npx hyperframes, ffmpeg, ls, cat, mkdir).
     
     Args:
-        command: Das auszuführende Kommando (z.B. 'npx hyperframes init', 'npx hyperframes render', 'ffmpeg', 'node')
+        command: Das auszuführende Kommando (z.B. 'npx hyperframes init', 'npx hyperframes render', 'ffmpeg -i in.mp4 out.mp3', 'ls -la')
         workdir: Arbeitsverzeichnis (Standard: aktuelles Verzeichnis)
         timeout: Timeout in Sekunden (Standard: 120)
     """
@@ -3272,6 +3313,7 @@ def run_command(
         return "❌ Fehler: Anführungszeichen im Kommando sind unbalanced"
     if not _parts_check:
         return "❌ Kein Kommando angegeben"
+    parts = _parts_check
     _allowed = False
     for prefix in _SAFE_COMMANDS:
         _prefix_parts = prefix.split()
@@ -3288,9 +3330,10 @@ def run_command(
         cwd = os.path.abspath(workdir) if workdir else get_workspace_dir()
         if workdir and not is_path_allowed(cwd):
             return f"❌ Zugriff verweigert: {cwd} ist nicht in den erlaubten Pfaden"
-        blocked = _validate_cmd_paths(parts, cwd)
+        parts, blocked = command_guard.check_args(
+            parts, cwd, is_path_allowed, protected=(get_workspace_dir(),))
         if blocked:
-            return f"❌ Zugriff verweigert: {blocked} ist nicht in den erlaubten Pfaden"
+            return blocked
         run_env = os.environ.copy()
         run_env["npm_config_yes"] = "true"
         _record_tool_call("run_command", {"cmd": cmd_str[:200], "cwd": cwd}, True, "start")
@@ -3341,6 +3384,7 @@ def vincent_tools_resource() -> str:
         {"name": "create_directory", "description": "Erstellt Verzeichnis", "icon": "📂", "category": "file"},
         {"name": "delete_file", "description": "Löscht Datei/Verzeichnis", "icon": "🗑️", "category": "file"},
         {"name": "analyze_project", "description": "Analysiert Projekt-Struktur", "icon": "🔬", "category": "system"},
+        {"name": "analyze_code", "description": "Findet Refactoring-Kandidaten in Python-Dateien", "icon": "🔬", "category": "system"},
         {"name": "patch_file", "description": "Ändert Code-Stellen gezielt", "icon": "🧵", "category": "file"},
         {"name": "scan_folder", "description": "Scannt Verzeichnis rekursiv", "icon": "🔭", "category": "file"},
         {"name": "add_project_to_rag", "description": "Projekt zu RAG hinzufügen", "icon": "📥", "category": "system"},
