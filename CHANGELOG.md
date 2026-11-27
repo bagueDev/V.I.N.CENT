@@ -1,6 +1,6 @@
 # Changelog – V.I.N.C.E.N.T.
 
-## [Unveröffentlicht] – 2026-11-27 (MCP-Server)
+## [1.8.1] – 2026-11-27 (MCP-Server)
 
 ### Fixes
 - **`run_command`** war seit 1.7.0 defekt: Jeder erlaubte Befehl endete mit `name 'parts' is not defined`.
